@@ -1,17 +1,15 @@
 {
-  "name": "traceyou",
+  "name": "traceme-server",
   "version": "0.0.1",
-  "description": "TCP server that speaks the KCS traceme language",
+  "description": "TCP server that speaks the KCS TraceME language",
   "main": "bin/server.js",
   "scripts": {
     "postinstall": "",
-    "start": "tsc& nodemon bin/testServer.js",
+    "dev": "tsc & nodemon bin/testServer.js",
     "build": "tsc"
   },
-  "author": "",
-  "license": "PRIVATE",
-  "homepage": "",
-  "private": true,
+  "author": "Niki Van Cleemput",
+  "license": "GNU LGPLv3",
   "dependencies": {
     "@reactivex/rxjs": "5.*",
     "@types/node": "7.*",
@@ -19,6 +17,7 @@
     "@types/yargs": "6.*",
     "@types/glob": "5.*",
     "@types/uuid": "2.*",
+    "typescript": "2.*",
     "glob": "7.*",
     "uuid": "3.*",
     "winston": "2.*",

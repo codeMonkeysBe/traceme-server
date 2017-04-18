@@ -14,7 +14,6 @@
   },
   "files": [
     "./src/index.ts",
-    "./src/testServer.ts",
-    "./src/client.ts"
+    "./src/testServer.ts"
   ]
 }
