@@ -23,7 +23,7 @@ To provide a less resource expensive way of connecting large pools of TraceME un
 ### Installation
 
 ```bash
-npm install tracem-server
+npm install traceme-server [--save]
 ```
 
 ### Example useage
