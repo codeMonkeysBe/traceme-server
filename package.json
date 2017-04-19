@@ -1,6 +1,6 @@
 {
   "name": "traceme-server",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "TCP server that speaks the KCS TraceME language",
   "main": "bin/index.js",
   "typings":  "src/index.ts",
