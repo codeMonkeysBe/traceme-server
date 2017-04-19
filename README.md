@@ -26,7 +26,7 @@ To provide a less resource expensive way of connecting large pools of TraceME un
 npm install traceme-server [--save]
 ```
 
-### Example useage
+### Getting started
 
 
 ```typescript
@@ -103,11 +103,30 @@ server.on("connection", conn => {
 
 });
 
-
-
 ```
 
 
+### Examples
+
+For more examples check out the src/examples directory
+
+To run these examples simply clone this repo, do an npm install and
+
+```bash
+npm run simple
+npm run moresoon
+```
+
+
+### Development
+
+Create a file in the src directory with the filename 'devServer.ts'. Easiest is to copy one of the examples in src/examples/.
+
+To run:
+
+```bash
+npm run dev
+```
 
 
 ### Small disclaimer

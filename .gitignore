@@ -39,5 +39,4 @@ jspm_packages
 # build dir
 bin
 
-# we don't want this public
-src/testServer.ts
+src/devServer.ts

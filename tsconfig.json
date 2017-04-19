@@ -13,7 +13,11 @@
     "alwaysStrict": true
   },
   "files": [
-    "./src/index.ts",
-    "./src/testServer.ts"
+    "./src/index.ts"
+  ],
+  "include": [
+    "./src/examples/**/*",
+    "./src/dev*.ts"
   ]
+
 }
