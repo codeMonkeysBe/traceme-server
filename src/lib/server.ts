@@ -56,10 +56,7 @@ export class Server extends EventEmitter {
   // Node net listen behaviour
   // TODO make transpiler stop complaining about call target mismatch
   listen(...args) {
-    logger.debug(args);
     this.tcpServer.listen(...args)
   }
-
-
 
 }
