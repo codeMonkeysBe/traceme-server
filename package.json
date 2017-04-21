@@ -2,6 +2,8 @@
   "name": "traceme-server",
   "version": "0.0.3",
   "description": "TCP server that speaks the KCS TraceME language",
+  "author": "Niki Van Cleemput",
+  "license": "GNU LGPLv3",
   "main": "bin/index.js",
   "typings":  "src/index.ts",
   "scripts": {
@@ -10,8 +12,9 @@
     "dev": "tsc & nodemon bin/devServer.js",
     "build": "tsc"
   },
-  "author": "Niki Van Cleemput",
-  "license": "GNU LGPLv3",
+  "engines": {
+    "node": ">=7.4.0"
+  },
   "dependencies": {
     "@types/node": "7.*",
     "@types/winston": "2.*",
