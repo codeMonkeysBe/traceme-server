@@ -8,9 +8,7 @@ let logger: any = new (winston.Logger)({
     ]
 });
 
-// Manually set this when developing
-// TODO user friendliness
-logger.level = "debug";
+logger.level = "error";
 
 /*
  * Custom logger function, for "standard" logmessage

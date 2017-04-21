@@ -5,4 +5,5 @@ function __export(m) {
 Object.defineProperty(exports, "__esModule", { value: true });
 __export(require("./lib/server"));
 __export(require("./lib/connection"));
+__export(require("./lib/logger"));
 //# sourceMappingURL=index.js.map
