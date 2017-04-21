@@ -2,12 +2,23 @@
   "name": "traceme-server",
   "version": "0.0.3",
   "description": "TCP server that speaks the KCS TraceME language",
-  "author": "Niki Van Cleemput",
+  "keywords": ["IoT", "TraceME", "tracking", "GPS"],
+  "author":  {
+    "name": "Niki Van Cleemput"
+  },
   "license": "GNU LGPLv3",
+  "homepage": "https://github.com/codeMonkeysBe/traceme-server",
+  "bugs": {
+    "url" : "https://github.com/codeMonkeysBe/traceme-server/issues",
+    "email" : "niki@waasit.be"
+  },
+  "repository" : {
+    "type" : "git",
+    "url" : "https://github.com/codeMonkeysBe/traceme-server"
+  },
   "main": "bin/index.js",
   "typings":  "src/index.ts",
   "scripts": {
-    "postinstall": "",
     "simple": "tsc & nodemon bin/examples/simple.js",
     "dev": "tsc & nodemon bin/devServer.js",
     "build": "tsc"
