@@ -14,7 +14,6 @@ class Server extends events_1.EventEmitter {
         this.kcs = kcs_1.loadKcsCode(options.cgpsPath);
         // Create tcp server that waits for connections coming from the modules
         this.tcpServer = net_1.createServer();
-        this.tcpServer.listen(options.port);
         // Binding handlers
         this.tcpServer.on("connection", (conn) => {
             // Pass options to connection
@@ -35,6 +34,12 @@ class Server extends events_1.EventEmitter {
         this.tcpServer.on("error", (err) => {
             this.emit("error", err);
         });
+    }
+    // Node net listen behaviour
+    // TODO make transpiler stop complaining about call target mismatch
+    listen(...args) {
+        logger_1.logger.debug(args);
+        this.tcpServer.listen(...args);
     }
 }
 exports.Server = Server;

@@ -1,5 +1,4 @@
 export interface ServerOptions {
-  port: number;
   tcpDataFormat: string;
   tcpExtraDataFormat: string;
   socketTimeout: number; // Socket timeout in seconds

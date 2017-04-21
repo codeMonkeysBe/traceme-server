@@ -26,7 +26,6 @@ export class Server extends EventEmitter {
     // Create tcp server that waits for connections coming from the modules
     this.tcpServer = createServer();
 
-    this.tcpServer.listen(options.port);
 
     // Binding handlers
     this.tcpServer.on("connection", (conn: Socket) => {
@@ -47,14 +46,18 @@ export class Server extends EventEmitter {
     this.tcpServer.on("listening", () => {
       logger.info("server: Server started");
       this.emit("listening");
-
     });
     this.tcpServer.on("error", (err: Error) => {
       this.emit("error", err);
     });
 
+  }
 
-
+  // Node net listen behaviour
+  // TODO make transpiler stop complaining about call target mismatch
+  listen(...args) {
+    logger.debug(args);
+    this.tcpServer.listen(...args)
   }
 
 

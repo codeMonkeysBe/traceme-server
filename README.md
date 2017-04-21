@@ -40,7 +40,6 @@ import { Server, ServerOptions } from "./traceme-server";
  * currently this means all options must be set
  */
 const options: ServerOptions = {
-  port: 6700, // The port the server listens on
   tcpDataFormat: "%s\n", // Format as defined in section 60 in the settings app.
   tcpExtraDataFormat: "%s\r%d\r%x\n", // Format as defined in section 60 in the settings app.
   socketTimeout: 120, // How long to keep connections open before sending a FIN
@@ -102,6 +101,9 @@ server.on("connection", conn => {
 
 
 });
+
+// After this call a socket will be opened on tcp port 6700
+server.listen(6700);
 
 ```
 

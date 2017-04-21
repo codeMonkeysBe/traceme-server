@@ -13,7 +13,6 @@ import { Server, ServerOptions } from "../";
  * currently this means all options must be set
  */
 const options: ServerOptions = {
-  port: 6700, // The port the server listens on
   tcpDataFormat: "%s\n", // Format as defined in section 60 in the settings app.
   tcpExtraDataFormat: "%s\r%d\r%x\n", // Format as defined in section 60 in the settings app.
   socketTimeout: 120, // How long to keep connections open before sending a FIN
@@ -53,5 +52,7 @@ server.on("connection", conn => {
 
 
 });
+
+server.listen(6700);
 
 

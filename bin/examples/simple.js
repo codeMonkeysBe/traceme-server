@@ -11,7 +11,6 @@ const _1 = require("../");
  * currently this means all options must be set
  */
 const options = {
-    port: 6700,
     tcpDataFormat: "%s\n",
     tcpExtraDataFormat: "%s\r%d\r%x\n",
     socketTimeout: 120,
@@ -44,4 +43,5 @@ server.on("connection", conn => {
         });
     });
 });
+server.listen(6700);
 //# sourceMappingURL=simple.js.map
