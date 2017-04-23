@@ -41,13 +41,17 @@ export class Server extends EventEmitter {
     });
 
     this.tcpServer.on("close", () => {
+      logger.info("server: close");
       this.emit("close");
     });
     this.tcpServer.on("listening", () => {
-      logger.info("server: Server started");
+      logger.info("server: listening");
       this.emit("listening");
     });
     this.tcpServer.on("error", (err: Error) => {
+      logger.f('error', 'server', "error ", {
+        error: err
+      });
       this.emit("error", err);
     });
 

@@ -26,8 +26,6 @@ export class Connection extends EventEmitter {
   // Single instance for each connection
   private cgps: any
 
-  private mSets: any = {};
-
   constructor(
     private tcpConnection: Socket,
     private kcs: any,
@@ -79,6 +77,7 @@ export class Connection extends EventEmitter {
     this.tcpConnection.on("close", () => {
       logger.f("info", this.uuid, "connection: socket close");
     });
+    this.emit("close");
   }
 
   // When other end sends a FIN packet to close the conn
@@ -88,6 +87,7 @@ export class Connection extends EventEmitter {
       // Return the fin
       this.tcpConnection.end();
     });
+    this.emit("end");
   }
 
   // When the socket timeouts.
@@ -96,6 +96,7 @@ export class Connection extends EventEmitter {
       this.tcpConnection.end();
       logger.f("info", this.uuid, "connection: socket timeout");
     });
+    this.emit("timeout");
   }
 
 
@@ -285,6 +286,7 @@ export class Connection extends EventEmitter {
       logger.f('error', this.uuid, "connection: tcpConnectionError ", {
         error: err
       });
+      this.emit("error", err);
     });
   }
 
@@ -310,7 +312,7 @@ export class Connection extends EventEmitter {
     // Load settings
     let setRes = cgpsSettings.SetSettingsData(Array.from(data.values()));
 
-    logger.f('error', this.uuid, "connection: pushSettings", {
+    logger.f('debug', this.uuid, "connection: pushSettings", {
       crc: cgpsSettings.GetSettingsCRC(),
       error: cgpsSettings.mLastError
     });
