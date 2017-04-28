@@ -28,18 +28,26 @@ export class Server extends EventEmitter {
 
 
     // Binding handlers
-    this.tcpServer.on("connection", (conn: Socket) => {
+    this.tcpServer.on("connection", (tcpConn: Socket) => {
 
       // Pass options to connection
-      this.emit("connection", new Connection(conn, this.kcs, {
+      let conn = new Connection(tcpConn, this.kcs, {
         tcpDataFormat: options.tcpDataFormat,
         tcpExtraDataFormat: options.tcpExtraDataFormat,
         socketTimeout: options.socketTimeout,
         maxBufferWrites: options.maxBufferWrites
-      }));
+      });
+
+
+      // Emit the connection
+      this.emit("connection", conn);
 
     });
 
+
+    /**
+     * TCP Server handlers
+     */
     this.tcpServer.on("close", () => {
       logger.info("server: close");
       this.emit("close");
@@ -56,6 +64,7 @@ export class Server extends EventEmitter {
     });
 
   }
+
 
   // Node net listen behaviour
   // TODO make transpiler stop complaining about call target mismatch

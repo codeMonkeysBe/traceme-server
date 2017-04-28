@@ -5,10 +5,19 @@ import * as uuid from "uuid";
 import { logger } from "./logger";
 import { ConnectionOptions } from "./connection-options.model";
 
+interface ackCounter {
+  parts: number;
+  ackedParts: number;
+};
+
+interface ackCounterCollection {
+  [ackUuid: string]: ackCounter;
+}
+
 export class Connection extends EventEmitter {
 
   // Unique id for each connection, useful for tracking a connection in the log
-  private uuid: string;
+  public uuid: string;
 
   // Connection buffer
   private buffer: Buffer;
@@ -19,15 +28,21 @@ export class Connection extends EventEmitter {
   // Regexes used to match and extract data
   private tcpDataFormatRegex: RegExp;
   private tcpExtraDataFormatRegex: RegExp;
+  private getRequestRegex: RegExp;
 
   // To keep track of the imei
-  private imei: string;
+  private imei: number;
 
   // Single instance for each connection
   private cgps: any
 
+  private actions: Array<any> = [];
+
+  // Each event needs to be acked before we can respond to the device with an ack
+  private ackCounters: ackCounterCollection = {};
+
   constructor(
-    private tcpConnection: Socket,
+    public tcpConnection: Socket,
     private kcs: any,
     private options: ConnectionOptions
   ) {
@@ -42,8 +57,10 @@ export class Connection extends EventEmitter {
     // Unique identifier for each connection ( good for logging purposes )
     this.uuid = uuid.v4();
 
-    // Initialize the module data string regexes
-    this.initRegexes();
+    // Create regexes from module data strings
+    this.tcpDataFormatRegex = this.regexFromTcpDataFormat(this.options.tcpDataFormat);
+    this.tcpExtraDataFormatRegex = this.regexFromTcpExtraDataFormat(this.options.tcpExtraDataFormat);
+    //this.getRequestRegex = \^GET \/\d*\.(hex)$\;
 
     /*
      * Initialize tcp handlers
@@ -60,6 +77,7 @@ export class Connection extends EventEmitter {
     // When the socket timeouts.
     this.initOnTimeoutHandler();
 
+    // Log the new connection so we know something happened
     logger.f('info', this.uuid, "connection: New connection ", {
       addr: this.tcpConnection.localAddress,
       port: this.tcpConnection.localPort,
@@ -68,36 +86,8 @@ export class Connection extends EventEmitter {
       fam: this.tcpConnection.remoteFamily,
     });
 
-
-
   }
 
-  // On socket fully closed
-  private initOnCloseHandler() {
-    this.tcpConnection.on("close", () => {
-      logger.f("info", this.uuid, "connection: socket close");
-    });
-    this.emit("close");
-  }
-
-  // When other end sends a FIN packet to close the conn
-  private initOnEndHandler() {
-    this.tcpConnection.on("end", () => {
-      logger.f("verbose", this.uuid, "connection: socket end, received fin, returning fin");
-      // Return the fin
-      this.tcpConnection.end();
-    });
-    this.emit("end");
-  }
-
-  // When the socket timeouts.
-  private initOnTimeoutHandler() {
-    this.tcpConnection.on("timeout", () => {
-      this.tcpConnection.end();
-      logger.f("info", this.uuid, "connection: socket timeout");
-    });
-    this.emit("timeout");
-  }
 
 
   // Handle incoming data
@@ -109,6 +99,7 @@ export class Connection extends EventEmitter {
         chunk: chunk.toString('ASCII')
       });
 
+      // Start a new buffer if necesarry
       if (typeof this.buffer === "undefined") {
         // Start a new buffer
         this.buffer = chunk;
@@ -117,19 +108,14 @@ export class Connection extends EventEmitter {
         this.buffer = Buffer.concat([this.buffer, chunk], this.buffer.length + chunk.length);
       }
 
-      logger.f("silly", this.uuid, "connection: total buffer", {
-        chunk: this.buffer.toString('ASCII'),
-        match: this.buffer.toString('ASCII').match(this.tcpExtraDataFormatRegex),
-        regx: this.tcpExtraDataFormatRegex
+      logger.f("debug", this.uuid, "connection: total buffer", {
+        chunk: this.buffer.toString('ASCII')
       });
 
 
       // Match the module data format with the incoming data
       let matches = this.buffer.toString('ASCII').match(this.tcpDataFormatRegex);
       let extraMatches = this.buffer.toString('ASCII').match(this.tcpExtraDataFormatRegex);
-
-      // to keep the cgps response
-      let response = null;
 
       /**
        * When our connection buffer matches a data string WITHOUT extra data
@@ -146,7 +132,7 @@ export class Connection extends EventEmitter {
 
 
         // decode the received data
-        response = this.decode(match);
+        this.decode(match);
 
         // Delete processed data from buffer
         // We assume our buffer is one ended
@@ -185,7 +171,7 @@ export class Connection extends EventEmitter {
         this.buffer = this.buffer.slice(extraMatches[0].length);
 
         // decode the received data
-        response = this.decode(match);
+        this.decode(match);
 
 
       } else {
@@ -204,14 +190,6 @@ export class Connection extends EventEmitter {
 
       }
 
-      // See if we need to respond
-      if(response !== null){
-        logger.f("debug", this.uuid, "connection: writing", {
-          buffer: response
-        });
-        // Reply to module with response
-        this.tcpConnection.write(response);
-      }
 
     });
   }
@@ -227,17 +205,18 @@ export class Connection extends EventEmitter {
       // First time we receive data and we don't have an imei yet
       // So we try to extract the imei
       let imeiData = data.split('|');
-      this.imei = imeiData[0];
+      this.imei = parseInt(imeiData[0], 10);
 
       logger.f("debug", this.uuid, "connection: Extracted imei", {
         imei: this.imei
       });
 
-
-      // Makes the module stop sending an imei with each transmission
-      this.cgps.mOmitIdentification = true;
+      // Report that we have the imei
+      this.emit('imei', this.imei);
     }
 
+    // Makes the module stop sending an imei with each transmission
+    this.cgps.mOmitIdentification = true;
 
     if(!this.cgps.SetHttpData(data)) {
       // Faulty
@@ -255,6 +234,13 @@ export class Connection extends EventEmitter {
     });
 
 
+    // Generate unique ack id for each incoming transmission.
+    let ackUuid = uuid.v4();
+    this.ackCounters[ackUuid] = {
+      parts: this.cgps.GetDataPartCount(),
+      ackedParts: 0
+    };
+
     /*
      * Loop over data parts and emit an event for each part
      */
@@ -271,38 +257,73 @@ export class Connection extends EventEmitter {
       this.emit('event', {
         cgps: this.cgps, // Expose cgps for decoding user side
         uuid: this.uuid, // Always include this one, so the client can correlate with the logs
-        imei: this.imei // Device imei
+        imei: this.imei, // Device imei
+        ackUuid: ackUuid
       });
     }
 
-    // TCP response in binary
-    return Buffer.from(this.cgps.BuildResponseTCP(this.cgps.GetDataPartCount()));
 
   }
 
+  public ack(ackUuid: string) {
 
-  private initOnErrorHandler() {
-    this.tcpConnection.on("error", (err) => {
-      logger.f('error', this.uuid, "connection: tcpConnectionError ", {
-        error: err
+    if(typeof this.ackCounters[ackUuid] === "undefined") {
+      logger.f('error', this.uuid, "connection: unkown ack ID ", {
+        ackUuid: ackUuid
       });
-      this.emit("error", err);
-    });
+      return;
+    }
+
+    this.ackCounters[ackUuid].ackedParts++;
+
+    if(this.ackCounters[ackUuid].ackedParts === this.ackCounters[ackUuid].parts) {
+
+      let response = Buffer.from(this.cgps.BuildResponseTCP(this.ackCounters[ackUuid].ackedParts));
+
+      // We have all parts acked
+      // TCP response in binary
+      logger.f("debug", this.uuid, "connection: acking data", {
+        buffer: response
+      });
+      // Reply to module with response
+      this.tcpConnection.write(response);
+
+    }
+
+    // Return true if ack worked
+    return true;
+
   }
 
 
-  private initRegexes() {
 
-    // Create regexes from module data strings
-    this.tcpDataFormatRegex = this.regexFromTcpDataFormat(this.options.tcpDataFormat);
-    this.tcpExtraDataFormatRegex = this.regexFromTcpExtraDataFormat(this.options.tcpExtraDataFormat);
+  public pushFirmware(version: number) {
 
+    if(this.cgps.RequireResponseActionMembersStall()) {
+      logger.f('notice', this.uuid, "connection.pushFirmware:", {
+        error: "cgps.RequireResponseActionMembersStall() returned true. Please try again later",
+      });
+      return false;
+    }
+
+    // Some sanity checks
+    if(!(Number.isInteger(version) && version > 200 && version < 600)) {
+      logger.f('notice', this.uuid, "connection.pushFirmware:", {
+        error: "firmware version should be a number",
+        version: version
+      });
+
+      return false;
+    }
   }
 
 
   public pushSettings(data: Buffer) {
 
     if(this.cgps.RequireResponseActionMembersStall()) {
+      logger.f('notice', this.uuid, "connection.pushSettings:", {
+        error: "cgps.RequireResponseActionMembersStall() returned true. Please try again later",
+      });
       return false;
     }
 
@@ -361,6 +382,43 @@ export class Connection extends EventEmitter {
     ds = ds.replace('%x', '([\u0000-\uffff]+)');
     return new RegExp(`^${ds}$`);
   }
+
+
+  // On socket fully closed
+  private initOnCloseHandler() {
+    this.tcpConnection.on("close", () => {
+      logger.f("info", this.uuid, "connection: socket close");
+    });
+    this.emit("close");
+  }
+  // When other end sends a FIN packet to close the conn
+  private initOnEndHandler() {
+    this.tcpConnection.on("end", () => {
+      logger.f("verbose", this.uuid, "connection: socket end, received fin, returning fin");
+      // Return the fin
+      this.tcpConnection.end();
+    });
+    this.emit("end");
+  }
+  // When the socket timeouts.
+  private initOnTimeoutHandler() {
+    this.tcpConnection.on("timeout", () => {
+      this.tcpConnection.end();
+      logger.f("info", this.uuid, "connection: socket timeout");
+      this.emit("timeout");
+    });
+  }
+  private initOnErrorHandler() {
+    this.tcpConnection.on("error", (err) => {
+      logger.f('error', this.uuid, "connection: tcpConnectionError ", {
+        error: err
+      });
+      this.emit("error", err);
+    });
+  }
+
+
+
 
 
 }
