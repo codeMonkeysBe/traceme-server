@@ -156,8 +156,8 @@ class Connection extends events_1.EventEmitter {
             error: this.cgps.GetLastError()
         });
         // Generate unique ack id for each incoming transmission.
-        let ackUuid = uuid.v4();
-        this.ackCounters[ackUuid] = {
+        let tsUuid = uuid.v4();
+        this.ackCounters[tsUuid] = {
             parts: this.cgps.GetDataPartCount(),
             ackedParts: 0
         };
@@ -178,20 +178,20 @@ class Connection extends events_1.EventEmitter {
                 cgps: this.cgps,
                 uuid: this.uuid,
                 imei: this.imei,
-                ackUuid: ackUuid
+                tsUuid: tsUuid
             });
         }
     }
-    ack(ackUuid) {
-        if (typeof this.ackCounters[ackUuid] === "undefined") {
+    ack(tsUuid) {
+        if (typeof this.ackCounters[tsUuid] === "undefined") {
             logger_1.logger.f('error', this.uuid, "connection: unkown ack ID ", {
-                ackUuid: ackUuid
+                tsUuid: tsUuid
             });
             return;
         }
-        this.ackCounters[ackUuid].ackedParts++;
-        if (this.ackCounters[ackUuid].ackedParts === this.ackCounters[ackUuid].parts) {
-            let response = Buffer.from(this.cgps.BuildResponseTCP(this.ackCounters[ackUuid].ackedParts));
+        this.ackCounters[tsUuid].ackedParts++;
+        if (this.ackCounters[tsUuid].ackedParts === this.ackCounters[tsUuid].parts) {
+            let response = Buffer.from(this.cgps.BuildResponseTCP(this.ackCounters[tsUuid].ackedParts));
             // We have all parts acked
             // TCP response in binary
             logger_1.logger.f("debug", this.uuid, "connection: acking data", {

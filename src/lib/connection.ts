@@ -11,7 +11,7 @@ interface ackCounter {
 };
 
 interface ackCounterCollection {
-  [ackUuid: string]: ackCounter;
+  [tsUuid: string]: ackCounter;
 }
 
 export class Connection extends EventEmitter {
@@ -235,8 +235,8 @@ export class Connection extends EventEmitter {
 
 
     // Generate unique ack id for each incoming transmission.
-    let ackUuid = uuid.v4();
-    this.ackCounters[ackUuid] = {
+    let tsUuid = uuid.v4();
+    this.ackCounters[tsUuid] = {
       parts: this.cgps.GetDataPartCount(),
       ackedParts: 0
     };
@@ -258,27 +258,27 @@ export class Connection extends EventEmitter {
         cgps: this.cgps, // Expose cgps for decoding user side
         uuid: this.uuid, // Always include this one, so the client can correlate with the logs
         imei: this.imei, // Device imei
-        ackUuid: ackUuid
+        tsUuid: tsUuid
       });
     }
 
 
   }
 
-  public ack(ackUuid: string) {
+  public ack(tsUuid: string) {
 
-    if(typeof this.ackCounters[ackUuid] === "undefined") {
+    if(typeof this.ackCounters[tsUuid] === "undefined") {
       logger.f('error', this.uuid, "connection: unkown ack ID ", {
-        ackUuid: ackUuid
+        tsUuid: tsUuid
       });
       return;
     }
 
-    this.ackCounters[ackUuid].ackedParts++;
+    this.ackCounters[tsUuid].ackedParts++;
 
-    if(this.ackCounters[ackUuid].ackedParts === this.ackCounters[ackUuid].parts) {
+    if(this.ackCounters[tsUuid].ackedParts === this.ackCounters[tsUuid].parts) {
 
-      let response = Buffer.from(this.cgps.BuildResponseTCP(this.ackCounters[ackUuid].ackedParts));
+      let response = Buffer.from(this.cgps.BuildResponseTCP(this.ackCounters[tsUuid].ackedParts));
 
       // We have all parts acked
       // TCP response in binary
