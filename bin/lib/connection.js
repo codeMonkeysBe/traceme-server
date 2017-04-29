@@ -13,7 +13,6 @@ class Connection extends events_1.EventEmitter {
         this.options = options;
         // Keep track of buffer writes
         this.bufferWriteCount = 0;
-        this.actions = [];
         // Each event needs to be acked before we can respond to the device with an ack
         this.ackCounters = {};
         this.cgps = new this.kcs.CGPS();
@@ -161,6 +160,8 @@ class Connection extends events_1.EventEmitter {
             parts: this.cgps.GetDataPartCount(),
             ackedParts: 0
         };
+        // Transmission date
+        let tsDate = new Date();
         /*
          * Loop over data parts and emit an event for each part
          */
@@ -176,9 +177,9 @@ class Connection extends events_1.EventEmitter {
             }
             this.emit('event', {
                 cgps: this.cgps,
-                uuid: this.uuid,
                 imei: this.imei,
-                tsUuid: tsUuid
+                uuid: tsUuid,
+                time: tsDate.toISOString() // Time the event arrived on server
             });
         }
     }
@@ -272,8 +273,8 @@ class Connection extends events_1.EventEmitter {
     initOnCloseHandler() {
         this.tcpConnection.on("close", () => {
             logger_1.logger.f("info", this.uuid, "connection: socket close");
+            this.emit("close");
         });
-        this.emit("close");
     }
     // When other end sends a FIN packet to close the conn
     initOnEndHandler() {
@@ -281,8 +282,8 @@ class Connection extends events_1.EventEmitter {
             logger_1.logger.f("verbose", this.uuid, "connection: socket end, received fin, returning fin");
             // Return the fin
             this.tcpConnection.end();
+            this.emit("end");
         });
-        this.emit("end");
     }
     // When the socket timeouts.
     initOnTimeoutHandler() {
