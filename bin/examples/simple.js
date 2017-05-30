@@ -28,22 +28,6 @@ let settingsOnce = true;
  * On each new connection, this callback executes
  */
 server.on("connection", conn => {
-    /*
-    if(!settingsOnce) {
-      setTimeout(() => {
-        let settings = readFileSync('/home/niki/projects/configs_niki/servertest_serial_log.tms');
-        conn.addResponseActionMember("mSettings", settings);
-        conn.applyResponseActionMembers();
-      }, 8000);
-      settingsOnce = true;
-    }
-  
-    setTimeout(() => {
-      conn.addResponseActionMember("mSerialPort4", Buffer.from("Some data", "ASCII"));
-      //conn.addResponseActionMember("mActionID", 37);
-      conn.applyResponseActionMembers();
-    }, 8000);
-    */
     /**
      * receivedEvent gives access to
      * imei  : easy access to the imei of the received data
