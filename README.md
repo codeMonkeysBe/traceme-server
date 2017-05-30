@@ -63,16 +63,16 @@ server.on("connection", conn => {
    * imei: easy access to the imei of the received data
    * uuid: each connections gets a unique identifier assigned, so it is easy to track connections in logfiles, etc.
    */
-  conn.on('event', context => {
+  conn.on('event', receivedEvent => {
 
     // Log received data
     console.log({
-      imei: context.cgps.GetImei(),
-      date: context.cgps.GetUtcTimeMySQL(),
-      eventId: context.cgps.CanGetEventID() ?  context.cgps.GetEventID() : null,
-      switch: context.cgps.GetSwitch(),
-      switchData: context.cgps.GetValidSwitchData(),
-      coords: context.cgps.CanGetLatLong() ? `${context.cgps.GetLatitudeFloat()}, ${context.cgps.GetLongitudeFloat()}` : null
+      imei: receivedEvent.cgps.GetImei(),
+      date: receivedEvent.cgps.GetUtcTimeMySQL(),
+      eventId: receivedEvent.cgps.CanGetEventID() ?  receivedEvent.cgps.GetEventID() : null,
+      switch: receivedEvent.cgps.GetSwitch(),
+      switchData: receivedEvent.cgps.GetValidSwitchData(),
+      coords: receivedEvent.cgps.CanGetLatLong() ? `${receivedEvent.cgps.GetLatitudeFloat()}, ${receivedEvent.cgps.GetLongitudeFloat()}` : null
     });
 
   });
@@ -81,23 +81,11 @@ server.on("connection", conn => {
   /**
    * Example writing extra data to disk
    */
-  conn.on('extraData', context => {
-    writeFile("/home/user/file.jpg", context.data, 'binary', err => {
+  conn.on('extraData', receivedEvent => {
+    writeFile("/home/user/file.jpg", receivedEvent.data, 'binary', err => {
       // Handle write finish/error
     });
   });
-
-  /**
-   * Example of uploading a configuration after a 5 second connection
-   * DONT DO THIS, ONLY HERE AS EXAMPLE
-   * This will upload a new configuration each time a tracer connects.
-   */
-  setTimeout(() => {
-    let settings = readFileSync('/path/to/settings.tms');
-
-    // Make sure to check for acknowledgements after sending stuff to the module
-    conn.pushSettings(settings);
-  }, 5000);
 
 
 });

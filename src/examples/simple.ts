@@ -1,12 +1,17 @@
 import { writeFile, readFileSync } from "fs";
 import { homedir } from "os";
 
+
+
+
 /*
  * Make sure to swap the comments on the next 2 lines
  */
 
 // import { Server, ServerOptions } from "traceme-server";
-import { Server, ServerOptions } from "../";
+import { Server, ServerOptions, logger } from "../";
+
+logger.level = "debug";
 
 /**
  * Make sure to set ALL required configuration options
@@ -16,8 +21,9 @@ const options: ServerOptions = {
   tcpDataFormat: "%s\n", // Format as defined in section 60 in the settings app.
   tcpExtraDataFormat: "%s\r%d\r%x\n", // Format as defined in section 60 in the settings app.
   socketTimeout: 120, // How long to keep connections open before sending a FIN
+  // TODO replace maxBufferWrites with maxBufferSize for a more sane approach
   maxBufferWrites: 40, // Number of buffer writes before a buffer is discarded ( make this small if you don't expect extraTcpData )
-  cgpsPath: homedir() + "/lib/cgps78/cgps.js" // Path to the downloaded cgps.js file
+  cgpsPath: homedir() + "/lib/cgps78/cgps-debug.js" // Path to the downloaded cgps.js file
 };
 
 /**
@@ -25,34 +31,81 @@ const options: ServerOptions = {
  */
 const server = new Server(options);
 
+let settingsOnce = true;
+
 /**
  * On each new connection, this callback executes
  */
 server.on("connection", conn => {
 
+
+  /*
+  if(!settingsOnce) {
+    setTimeout(() => {
+      let settings = readFileSync('/home/niki/projects/configs_niki/servertest_serial_log.tms');
+      conn.addResponseActionMember("mSettings", settings);
+      conn.applyResponseActionMembers();
+    }, 8000);
+    settingsOnce = true;
+  }
+
+  setTimeout(() => {
+    conn.addResponseActionMember("mSerialPort4", Buffer.from("Some data", "ASCII"));
+    //conn.addResponseActionMember("mActionID", 37);
+    conn.applyResponseActionMembers();
+  }, 8000);
+  */
+
   /**
-   * Context gives access to
-   * cgps: the plain cgps class which can be used to read the retrieved data
-   * imei: easy access to the imei of the received data
-   * uuid: each connections gets a unique identifier assigned, so it is easy to track connections in logfiles, etc.
+   * receivedEvent gives access to
+   * imei  : easy access to the imei of the received data
+   * cgps  : the plain cgps class which can be used to read the retrieved data
+   * uuid  : each connections gets a unique identifier assigned, so it is easy to track connections in logfiles, etc.
+   * tsUuid: each transmission has an unique identifier assigned.
    */
-  conn.on('event', context => {
+  conn.on('event', receivedEvent => {
 
     // Log received data
-    console.log({
-      imei: context.cgps.GetImei(),
-      date: context.cgps.GetUtcTimeMySQL(),
-      eventId: context.cgps.CanGetEventID() ?  context.cgps.GetEventID() : null,
-      switch: context.cgps.GetSwitch(),
-      switchData: context.cgps.GetValidSwitchData(),
-      coords: context.cgps.CanGetLatLong() ? `${context.cgps.GetLatitudeFloat()}, ${context.cgps.GetLongitudeFloat()}` : null
-    });
+    console.log("\n\n",{
+      imei: receivedEvent.cgps.GetImei(),
+      tsUuid: receivedEvent.tsUuid,
+      date: receivedEvent.cgps.GetUtcTimeMySQL(),
+      eventId: receivedEvent.cgps.CanGetEventID() ?  receivedEvent.cgps.GetEventID() : null,
+      switch: receivedEvent.cgps.GetSwitch(),
+      switchData: receivedEvent.cgps.GetValidSwitchData(),
+      coords: receivedEvent.cgps.CanGetLatLong() ? `${receivedEvent.cgps.GetLatitudeFloat()}, ${receivedEvent.cgps.GetLongitudeFloat()}` : null,
+      dataBytes: receivedEvent.cgps.CanGetPortData() ? receivedEvent.cgps.GetPortDataBytes() : null
+    },"\n\n");
+
+    /**
+     * This is IMPORTANT
+     *
+      * Every event we receive needs to be acknowledged to the connection by calling the conn.ack(tsUuid) method
+      * when the connection receives an ack for each event in the transmission,
+      * it sends an ack back to the module which in turn removes the transmission data from internal storage.
+      *
+     */
+    conn.ack(receivedEvent.tsUuid);
 
   });
 
 
+  conn.on('extraData', receivedData => {
+    console.log("extraData", receivedData);
+  });
+
+  /**
+   * You should
+   */
+  conn.on('error', err => {
+    console.log('Handling errors', err);
+  });
+
+
+
 });
 
+// Start listening on a certain port
 server.listen(6700);
 
 

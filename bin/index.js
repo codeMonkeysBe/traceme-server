@@ -6,4 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 __export(require("./lib/server"));
 __export(require("./lib/connection"));
 __export(require("./lib/logger"));
+__export(require("./lib/response-action-member.model"));
+__export(require("./lib/response-action-member.service"));
 //# sourceMappingURL=index.js.map

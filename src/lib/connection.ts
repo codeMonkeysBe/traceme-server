@@ -4,6 +4,8 @@ import * as uuid from "uuid";
 
 import { logger } from "./logger";
 import { ConnectionOptions } from "./connection-options.model";
+import { ResponseActionMemberService } from "./response-action-member.service";
+import { ResponseActionMember} from "./response-action-member.model";
 
 interface ackCounter {
   parts: number;
@@ -39,9 +41,13 @@ export class Connection extends EventEmitter {
   // Each event needs to be acked before we can respond to the device with an ack
   private ackCounters: ackCounterCollection = {};
 
+  // Service to set response action members
+  private responseActionMemberService: ResponseActionMemberService;
+
+
   constructor(
     public tcpConnection: Socket,
-    private kcs: any,
+    private kcs: any, // Passed as construction argument because this is dynamically loaded
     private options: ConnectionOptions
   ) {
     // We are an event emitter
@@ -49,31 +55,38 @@ export class Connection extends EventEmitter {
 
     this.cgps = new this.kcs.CGPS();
 
+    // Constructing the service that sets and checks ->m... actions
+    this.responseActionMemberService = new ResponseActionMemberService(this.cgps, this.kcs);
+
     // Setting the socket timeout, converting seconds to the socket expected milliseconds
     this.tcpConnection.setTimeout(options.socketTimeout*1000);
 
     // Unique identifier for each connection ( good for logging purposes )
     this.uuid = uuid.v4();
 
-    // Create regexes from module data strings
-    this.tcpDataFormatRegex = this.regexFromTcpDataFormat(this.options.tcpDataFormat);
-    this.tcpExtraDataFormatRegex = this.regexFromTcpExtraDataFormat(this.options.tcpExtraDataFormat);
-    //this.getRequestRegex = \^GET \/\d*\.(hex)$\;
+    /*
+     * Creates a regex from a tcp data string
+     * so we can easily extract data from incoming transmissions
+     */
+    this.tcpDataFormatRegex = new RegExp(`^${this.options.tcpDataFormat.replace('%s', '([0-9a-zA-Z|_-]+)')}`)
+
+    /*
+     * Creates a regex from a tcp extra data string
+     * so we can easily extract data from incoming transmissions
+     */
+    let ds = this.options.tcpExtraDataFormat
+    .replace('%s', '([0-9a-zA-Z|_-]+)')
+    .replace('%d', '([0-9]+)')
+    .replace('%x', '([\u0000-\uffff]+)');
+
+    this.tcpExtraDataFormatRegex = new RegExp(`^${ds}$`);
 
     /*
      * Initialize tcp handlers
      */
 
     // handler that handles incoming data
-    this.initOnDataHandler();
-    // When some error occurs on the tcp conn
-    this.initOnErrorHandler();
-    // On socket fully closed
-    this.initOnCloseHandler();
-    // When one end sends a FIN packet to close the conn
-    this.initOnEndHandler();
-    // When the socket timeouts.
-    this.initOnTimeoutHandler();
+    this.initConnectionHandlers();
 
     // Log the new connection so we know something happened
     logger.f('info', this.uuid, "connection: New connection ", {
@@ -87,9 +100,31 @@ export class Connection extends EventEmitter {
   }
 
 
+  // Add a single response action member
+  public addResponseActionMember(action, payload) {
+    return this.responseActionMemberService.add(action, payload);
+  }
+
+  public applyResponseActionMembers(): ResponseActionMember[] {
+
+    let responseActionMemberResults = this.responseActionMemberService.applyResponseActionMembers();
+
+    logger.f("debug", this.uuid, "connection: applyResponseActionMembers", {
+      results: responseActionMemberResults,
+      cgps: this.cgps
+    });
+
+    // Try to send the response now
+    this.sendResponse();
+
+    // Return the members and their results
+    return responseActionMemberResults;
+  }
+
+
 
   // Handle incoming data
-  private initOnDataHandler() {
+  private initConnectionHandlers() {
 
     this.tcpConnection.on("data", (chunk: Buffer) => {
 
@@ -110,18 +145,21 @@ export class Connection extends EventEmitter {
         chunk: this.buffer.toString('ASCII')
       });
 
-
       // Match the module data format with the incoming data
+
+      // If matches has results we know we have a regular data string
       let matches = this.buffer.toString('ASCII').match(this.tcpDataFormatRegex);
+      // If extra matches has results we know we have an extra data string
       let extraMatches = this.buffer.toString('ASCII').match(this.tcpExtraDataFormatRegex);
+
 
       /**
        * When our connection buffer matches a data string WITHOUT extra data
        */
       if(Array.isArray(matches) && matches.length === 2) {
 
-
         // We want the datastring itself, which is in match 1
+        // the first matching parentheses of the tcpDataFormatRegex
         let match: string = matches[1];
 
         logger.f("silly", this.uuid, "connection: Matched TCP data format", {
@@ -129,8 +167,8 @@ export class Connection extends EventEmitter {
         });
 
 
-        // decode the received data
-        this.decode(match);
+        // process the received data
+        this.processDataString(match);
 
         // Delete processed data from buffer
         // We assume our buffer is one ended
@@ -139,13 +177,13 @@ export class Connection extends EventEmitter {
         // until the end of our data format match
         this.buffer = this.buffer.slice(matches[0].length);
 
-
-      /**
-       *  When our connection buffer matches a data string WITH extra data
-       */
+        /**
+         *  When our connection buffer matches a data string with EXTRA data
+         */
       } else if (Array.isArray(extraMatches) && extraMatches.length === 4) {
 
         // We want the datastring itself, which is in match 1
+        // the first matching parentheses of the tcpExtraDataFormat
         let match: string = extraMatches[1];
         let bytesOfData: number = parseInt(extraMatches[2], 10);
 
@@ -168,8 +206,8 @@ export class Connection extends EventEmitter {
 
         this.buffer = this.buffer.slice(extraMatches[0].length);
 
-        // decode the received data
-        this.decode(match);
+        // processDataString the received data
+        this.processDataString(match);
 
 
       } else {
@@ -188,24 +226,72 @@ export class Connection extends EventEmitter {
 
       }
 
-
     });
+
+    this.tcpConnection.on("close", () => {
+      logger.f("info", this.uuid, "connection: socket close");
+      this.emit("close");
+    });
+    this.tcpConnection.on("end", () => {
+      logger.f("verbose", this.uuid, "connection: socket end, received fin, returning fin");
+      // Return the fin
+      this.tcpConnection.end();
+      this.emit("end");
+    });
+    this.tcpConnection.on("timeout", () => {
+      this.tcpConnection.end();
+      logger.f("info", this.uuid, "connection: socket timeout");
+      this.emit("timeout");
+    });
+    this.tcpConnection.on("error", (err) => {
+      logger.f('error', this.uuid, "connection: tcpConnectionError ", {
+        error: err
+      });
+      this.emit("error", err);
+    });
+
   }
 
-  private decode(data: string): Buffer {
 
-    this.cgps.ClearResponseActionMembers();
+  private processDataString(dataString: string): Buffer {
 
-    if(typeof this.imei !== "undefined") {
-      // Add imei in data parts
-      data = data.replace("|", `${this.imei}|`);
+    // Place to store the extracted imei
+    let transmittedImei;
+
+    // Extract the imei in match array
+    let imeiMatches = dataString.match(/^(\d+)\|/);
+
+    if(imeiMatches && typeof imeiMatches[1] !== "undefined") {
+      transmittedImei = imeiMatches[1];
+    }
+
+    // Already got the imei
+    if(typeof this.imei !== "undefined" ) {
+
+      // Odd, we shouldn't receive the imei again.
+      // Could be that the module didn't receive our first ack yet for omitting the identification
+      if(typeof transmittedImei !== "undefined") {
+        // Processing as usual but checking the dataString for a imei validation
+        if(transmittedImei !== this.imei) {
+          // Very strange, we received a different imei then before.
+          logger.f("error", this.uuid, "connection: Extracted imei from transmission did not match imei set on connection", {
+            connectionImei: this.imei,
+            transmittedImei: transmittedImei,
+          });
+          // Kill the connection at once.
+          this.tcpConnection.destroy("imei mismatch on connection");
+
+        }
+      } else {
+        // Make whole module dataString strings
+        dataString = dataString.replace(/^\d*\|/, `${this.imei}|`);
+      }
+
+
     } else {
-      // First time we receive data and we don't have an imei yet
-      // So we try to extract the imei
-      let imeiData = data.split('|');
-      this.imei = parseInt(imeiData[0], 10);
 
-      logger.f("debug", this.uuid, "connection: Extracted imei", {
+      this.imei = transmittedImei;
+      logger.f("debug", this.uuid, "connection: Extracted imei from transmission", {
         imei: this.imei
       });
 
@@ -216,18 +302,20 @@ export class Connection extends EventEmitter {
     // Makes the module stop sending an imei with each transmission
     this.cgps.mOmitIdentification = true;
 
-    if(!this.cgps.SetHttpData(data)) {
+    if(!this.cgps.SetHttpData(dataString)) {
       // Faulty
-      logger.f("error", this.uuid, "connection: Invalid data", {
-        data: data,
+      logger.f("error", this.uuid, "connection: Invalid dataString", {
+        dataString: dataString,
         error: this.cgps.GetLastError()
       });
       return null;
     }
 
-    logger.f("debug", this.uuid, "connection: Decoding data", {
-      data: data,
-      parts: this.cgps.GetDataPartCount(),
+    let totalParts = this.cgps.GetDataPartCount();
+
+    logger.f("debug", this.uuid, "connection: Decoding dataString", {
+      dataString: dataString,
+      parts: totalParts,
       error: this.cgps.GetLastError()
     });
 
@@ -235,7 +323,7 @@ export class Connection extends EventEmitter {
     // Generate unique ack id for each incoming transmission.
     let tsUuid = uuid.v4();
     this.ackCounters[tsUuid] = {
-      parts: this.cgps.GetDataPartCount(),
+      parts: totalParts,
       ackedParts: 0
     };
 
@@ -245,27 +333,33 @@ export class Connection extends EventEmitter {
     /*
      * Loop over data parts and emit an event for each part
      */
-    for (let part = 0; part < this.cgps.GetDataPartCount(); part++ ) {
+    for (let part = 0; part < totalParts; part++ ) {
       // try selecting the data part and validate it
       if (!this.cgps.SelectDataPart(part) || !this.cgps.IsValid()) {
         logger.f("error", this.uuid, "connection: Invalid data part", {
-          data: data,
-          faultyPart: part,
-          error: this.cgps.GetLastError()
+          dataString: dataString,
+          imei:  this.imei, // Device imei
+          uuid:  tsUuid, // the transmission uuid
+          time:  tsDate.toISOString(), // Time the event arrived on server
+          faultyPart: part, // Part number
+          error: this.cgps.GetLastError() // The errror message
         });
         continue;
       }
       this.emit('event', {
-        cgps: this.cgps, // Expose cgps for decoding user side
-        imei: this.imei, // Device imei
-        uuid: tsUuid, // the transmission uuid
-        time: tsDate.toISOString() // Time the event arrived on server
+        cgps:        this.cgps, // Expose cgps for decoding user side
+        imei:        this.imei, // Device imei
+        tsUuid:      tsUuid, // the transmission uuid
+        tsTime:      tsDate.toISOString(), // Time the event arrived on server
+        totalParts:  totalParts, // Total number of parts received
+        currentPart: part // Partnumber of current part
       });
     }
 
 
   }
 
+  // Ack an individual event in a transmission
   public ack(tsUuid: string) {
 
     if(typeof this.ackCounters[tsUuid] === "undefined") {
@@ -279,15 +373,10 @@ export class Connection extends EventEmitter {
 
     if(this.ackCounters[tsUuid].ackedParts === this.ackCounters[tsUuid].parts) {
 
-      let response = Buffer.from(this.cgps.BuildResponseTCP(this.ackCounters[tsUuid].ackedParts));
+      this.sendResponse(this.ackCounters[tsUuid].ackedParts);
 
-      // We have all parts acked
-      // TCP response in binary
-      logger.f("debug", this.uuid, "connection: acking data", {
-        buffer: response
-      });
-      // Reply to module with response
-      this.tcpConnection.write(response);
+      // Clean up
+      delete this.ackCounters[tsUuid];
 
     }
 
@@ -298,125 +387,38 @@ export class Connection extends EventEmitter {
 
 
 
-  public pushFirmware(version: number) {
+  private sendResponse(ackedParts: number = 0) {
 
-    if(this.cgps.RequireResponseActionMembersStall()) {
-      logger.f('notice', this.uuid, "connection.pushFirmware:", {
-        error: "cgps.RequireResponseActionMembersStall() returned true. Please try again later",
-      });
+    let runningTransmissions = Object.keys(this.ackCounters);
+
+    // Do net send when a transmission is in progress.
+    // Response will be send anyway
+    if(ackedParts === 0 && runningTransmissions.length !== 0){
       return false;
     }
 
-    // Some sanity checks
-    if(!(Number.isInteger(version) && version > 200 && version < 600)) {
-      logger.f('notice', this.uuid, "connection.pushFirmware:", {
-        error: "firmware version should be a number",
-        version: version
-      });
+    let response = Buffer.from(this.cgps.BuildResponseTCP(ackedParts));
 
-      return false;
-    }
-  }
-
-
-  public pushSettings(data: Buffer) {
-
-    if(this.cgps.RequireResponseActionMembersStall()) {
-      logger.f('notice', this.uuid, "connection.pushSettings:", {
-        error: "cgps.RequireResponseActionMembersStall() returned true. Please try again later",
-      });
-      return false;
-    }
-
-
-    let cgpsSettings = new this.kcs.CGPSsettings();
-
-    // Load settings
-    let setRes = cgpsSettings.SetSettingsData(Array.from(data.values()));
-
-    logger.f('debug', this.uuid, "connection: pushSettings", {
-      crc: cgpsSettings.GetSettingsCRC(),
-      error: cgpsSettings.mLastError
-    });
-
-    if(!setRes) {
-      return false;
-    }
-
-    this.cgps.ClearResponseActionMembers();
-    this.cgps.mSettings = cgpsSettings.GetSettingsData();
-
-    let response = Buffer.from(this.cgps.BuildResponseTCP(0));
     // See if we need to respond
     if(response !== null){
 
-      logger.f("debug", this.uuid, "connection: pushSettings", {
-        buffer: response
+      logger.f("debug", this.uuid, "connection: sendingResponse", {
+        buffer: response,
+        bufferString: response.toString('utf-8')
       });
 
       // Reply to module with response
       this.tcpConnection.write(response);
 
-      // Signal that the upload is not stopped by other action members
-      // Note that the upload itself wil occur asynchronous;
-      return true;
+      // Do this at end of each transmission
+      this.cgps.ClearResponseActionMembers();
     }
 
+    return true;
+
   }
 
 
-  /*
-   * Creates a regex from a tcp data string
-   * so we can easily extract data from incoming transmissions
-   */
-  private regexFromTcpDataFormat(dataString): RegExp {
-    return new RegExp(`^${dataString.replace('%s', '([0-9a-zA-Z|_-]+)')}`);
-  }
-
-  /*
-   * Creates a regex from a tcp extra data string
-   * so we can easily extract data from incoming transmissions
-   */
-  private regexFromTcpExtraDataFormat(dataString): RegExp {
-    let ds = dataString.replace('%s', '([0-9a-zA-Z|_-]+)');
-    ds = ds.replace('%d', '([0-9]+)')
-    ds = ds.replace('%x', '([\u0000-\uffff]+)');
-    return new RegExp(`^${ds}$`);
-  }
-
-
-  // On socket fully closed
-  private initOnCloseHandler() {
-    this.tcpConnection.on("close", () => {
-      logger.f("info", this.uuid, "connection: socket close");
-      this.emit("close");
-    });
-  }
-  // When other end sends a FIN packet to close the conn
-  private initOnEndHandler() {
-    this.tcpConnection.on("end", () => {
-      logger.f("verbose", this.uuid, "connection: socket end, received fin, returning fin");
-      // Return the fin
-      this.tcpConnection.end();
-      this.emit("end");
-    });
-  }
-  // When the socket timeouts.
-  private initOnTimeoutHandler() {
-    this.tcpConnection.on("timeout", () => {
-      this.tcpConnection.end();
-      logger.f("info", this.uuid, "connection: socket timeout");
-      this.emit("timeout");
-    });
-  }
-  private initOnErrorHandler() {
-    this.tcpConnection.on("error", (err) => {
-      logger.f('error', this.uuid, "connection: tcpConnectionError ", {
-        error: err
-      });
-      this.emit("error", err);
-    });
-  }
 
 
 
