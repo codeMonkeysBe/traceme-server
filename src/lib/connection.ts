@@ -24,9 +24,6 @@ export class Connection extends EventEmitter {
   // Connection buffer
   private buffer: Buffer;
 
-  // Keep track of buffer writes
-  private bufferWriteCount: number = 0;
-
   // Regexes used to match and extract data
   private tcpDataFormatRegex: RegExp;
   private tcpExtraDataFormatRegex: RegExp;
@@ -141,6 +138,16 @@ export class Connection extends EventEmitter {
         this.buffer = Buffer.concat([this.buffer, chunk], this.buffer.length + chunk.length);
       }
 
+      if(this.buffer.length > this.options.maxBufferSize) {
+        logger.f("error", this.uuid, "connection: maxBufferSize exeeded, closing the connection", {
+          buffer: this.buffer.toString('ASCII')
+        });
+        // Close up the connection
+        delete this.buffer
+        this.tcpConnection.end();
+        return;
+      }
+
       logger.f("debug", this.uuid, "connection: total buffer", {
         chunk: this.buffer.toString('ASCII')
       });
@@ -209,20 +216,6 @@ export class Connection extends EventEmitter {
         // processDataString the received data
         this.processDataString(match);
 
-
-      } else {
-        // Buffer didn't match anything
-
-        // Protection against buffer overruns, memory blackouts
-        if(this.bufferWriteCount >= this.options.maxBufferWrites) {
-          this.bufferWriteCount = 0;
-          delete this.buffer;
-        }
-        this.bufferWriteCount++;
-
-        logger.f("silly", this.uuid, "connection: Incomplete buffer", {
-          buffer: this.buffer
-        });
 
       }
 

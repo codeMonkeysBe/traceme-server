@@ -13,8 +13,6 @@ class Connection extends events_1.EventEmitter {
         this.tcpConnection = tcpConnection;
         this.kcs = kcs;
         this.options = options;
-        // Keep track of buffer writes
-        this.bufferWriteCount = 0;
         // Each event needs to be acked before we can respond to the device with an ack
         this.ackCounters = {};
         this.cgps = new this.kcs.CGPS();
@@ -82,6 +80,15 @@ class Connection extends events_1.EventEmitter {
                 // Concat to existing buffer
                 this.buffer = Buffer.concat([this.buffer, chunk], this.buffer.length + chunk.length);
             }
+            if (this.buffer.length > this.options.maxBufferSize) {
+                logger_1.logger.f("error", this.uuid, "connection: maxBufferSize exeeded, closing the connection", {
+                    buffer: this.buffer.toString('ASCII')
+                });
+                // Close up the connection
+                delete this.buffer;
+                this.tcpConnection.end();
+                return;
+            }
             logger_1.logger.f("debug", this.uuid, "connection: total buffer", {
                 chunk: this.buffer.toString('ASCII')
             });
@@ -132,18 +139,6 @@ class Connection extends events_1.EventEmitter {
                 this.buffer = this.buffer.slice(extraMatches[0].length);
                 // processDataString the received data
                 this.processDataString(match);
-            }
-            else {
-                // Buffer didn't match anything
-                // Protection against buffer overruns, memory blackouts
-                if (this.bufferWriteCount >= this.options.maxBufferWrites) {
-                    this.bufferWriteCount = 0;
-                    delete this.buffer;
-                }
-                this.bufferWriteCount++;
-                logger_1.logger.f("silly", this.uuid, "connection: Incomplete buffer", {
-                    buffer: this.buffer
-                });
             }
         });
         this.tcpConnection.on("close", () => {

@@ -21,8 +21,7 @@ const options: ServerOptions = {
   tcpDataFormat: "%s\n", // Format as defined in section 60 in the settings app.
   tcpExtraDataFormat: "%s\r%d\r%x\n", // Format as defined in section 60 in the settings app.
   socketTimeout: 120, // How long to keep connections open before sending a FIN
-  // TODO replace maxBufferWrites with maxBufferSize for a more sane approach
-  maxBufferWrites: 40, // Number of buffer writes before a buffer is discarded ( make this small if you don't expect extraTcpData )
+  maxBufferSize: 4096, // In Bytes. The maximum amount of memory a buffer may contain. Keep this in mind when setting max badge size in section 60 of the settings app
   cgpsPath: homedir() + "/lib/cgps78/cgps-debug.js" // Path to the downloaded cgps.js file
 };
 

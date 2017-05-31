@@ -35,7 +35,7 @@ export class Server extends EventEmitter {
         tcpDataFormat: options.tcpDataFormat,
         tcpExtraDataFormat: options.tcpExtraDataFormat,
         socketTimeout: options.socketTimeout,
-        maxBufferWrites: options.maxBufferWrites
+        maxBufferSize: options.maxBufferSize
       });
 
 

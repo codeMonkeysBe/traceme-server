@@ -21,7 +21,7 @@ class Server extends events_1.EventEmitter {
                 tcpDataFormat: options.tcpDataFormat,
                 tcpExtraDataFormat: options.tcpExtraDataFormat,
                 socketTimeout: options.socketTimeout,
-                maxBufferWrites: options.maxBufferWrites
+                maxBufferSize: options.maxBufferSize
             });
             // Emit the connection
             this.emit("connection", conn);

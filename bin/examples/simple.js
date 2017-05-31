@@ -15,8 +15,7 @@ const options = {
     tcpDataFormat: "%s\n",
     tcpExtraDataFormat: "%s\r%d\r%x\n",
     socketTimeout: 120,
-    // TODO replace maxBufferWrites with maxBufferSize for a more sane approach
-    maxBufferWrites: 40,
+    maxBufferSize: 4096,
     cgpsPath: os_1.homedir() + "/lib/cgps78/cgps-debug.js" // Path to the downloaded cgps.js file
 };
 /**
