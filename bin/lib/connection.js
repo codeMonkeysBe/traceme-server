@@ -51,14 +51,13 @@ class Connection extends events_1.EventEmitter {
         });
     }
     // Add a single response action member
-    addResponseActionMember(action, payload) {
-        return this.responseActionMemberService.add(action, payload);
+    addResponseActionMember(action, payload, extra = null) {
+        return this.responseActionMemberService.add(action, payload, extra);
     }
     applyResponseActionMembers() {
         let responseActionMemberResults = this.responseActionMemberService.applyResponseActionMembers();
         logger_1.logger.f("debug", this.uuid, "connection: applyResponseActionMembers", {
-            results: responseActionMemberResults,
-            cgps: this.cgps
+            results: responseActionMemberResults
         });
         // Try to send the response now
         this.sendResponse();
@@ -260,6 +259,15 @@ class Connection extends events_1.EventEmitter {
         }
         this.ackCounters[tsUuid].ackedParts++;
         if (this.ackCounters[tsUuid].ackedParts === this.ackCounters[tsUuid].parts) {
+            logger_1.logger.f('debug', this.uuid, "tranmission acked", {
+                tsUuid: tsUuid
+            });
+            // Notify connection client that a transmission is fully acked
+            this.emit('acked', {
+                tsUuid: tsUuid,
+                totalParts: this.ackCounters[tsUuid].ackedParts,
+                imei: this.imei
+            });
             this.sendResponse(this.ackCounters[tsUuid].ackedParts);
             // Clean up
             delete this.ackCounters[tsUuid];

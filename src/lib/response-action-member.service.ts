@@ -12,8 +12,8 @@ export class ResponseActionMemberService {
   ){
   }
 
-  public add(action: string, payload: any): void {
-    this.responseActionMembers.push(new ResponseActionMember(action, payload));
+  public add(action: string, payload: any, extra: any = null): void {
+    this.responseActionMembers.push(new ResponseActionMember(action, payload, extra));
   }
 
   public applyResponseActionMembers(): ResponseActionMember[] {
@@ -83,6 +83,8 @@ export class ResponseActionMemberService {
     }
 
     this.cgps.mSettings = cgpsSettings.GetSettingsData();
+
+    return true;
 
   }
 

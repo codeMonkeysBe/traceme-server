@@ -22,7 +22,6 @@ const options = {
  * Construct a new server which starts listening immediately
  */
 const server = new _1.Server(options);
-let settingsOnce = true;
 /**
  * On each new connection, this callback executes
  */

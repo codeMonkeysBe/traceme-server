@@ -98,8 +98,8 @@ export class Connection extends EventEmitter {
 
 
   // Add a single response action member
-  public addResponseActionMember(action, payload) {
-    return this.responseActionMemberService.add(action, payload);
+  public addResponseActionMember(action: string, payload: any, extra: any = null) {
+    return this.responseActionMemberService.add(action, payload, extra);
   }
 
   public applyResponseActionMembers(): ResponseActionMember[] {
@@ -107,8 +107,7 @@ export class Connection extends EventEmitter {
     let responseActionMemberResults = this.responseActionMemberService.applyResponseActionMembers();
 
     logger.f("debug", this.uuid, "connection: applyResponseActionMembers", {
-      results: responseActionMemberResults,
-      cgps: this.cgps
+      results: responseActionMemberResults
     });
 
     // Try to send the response now
@@ -258,6 +257,8 @@ export class Connection extends EventEmitter {
       transmittedImei = imeiMatches[1];
     }
 
+
+
     // Already got the imei
     if(typeof this.imei !== "undefined" ) {
 
@@ -312,13 +313,13 @@ export class Connection extends EventEmitter {
       error: this.cgps.GetLastError()
     });
 
-
     // Generate unique ack id for each incoming transmission.
     let tsUuid = uuid.v4();
     this.ackCounters[tsUuid] = {
       parts: totalParts,
       ackedParts: 0
     };
+
 
     // Transmission date
     let tsDate = new Date();
@@ -365,6 +366,17 @@ export class Connection extends EventEmitter {
     this.ackCounters[tsUuid].ackedParts++;
 
     if(this.ackCounters[tsUuid].ackedParts === this.ackCounters[tsUuid].parts) {
+
+      logger.f('debug', this.uuid, "tranmission acked", {
+        tsUuid: tsUuid
+      });
+
+      // Notify connection client that a transmission is fully acked
+      this.emit('acked', {
+        tsUuid: tsUuid,
+        totalParts: this.ackCounters[tsUuid].ackedParts,
+        imei: this.imei
+      });
 
       this.sendResponse(this.ackCounters[tsUuid].ackedParts);
 

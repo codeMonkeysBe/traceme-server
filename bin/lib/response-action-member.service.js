@@ -8,8 +8,8 @@ class ResponseActionMemberService {
         this.kcs = kcs;
         this.responseActionMembers = [];
     }
-    add(action, payload) {
-        this.responseActionMembers.push(new response_action_member_model_1.ResponseActionMember(action, payload));
+    add(action, payload, extra = null) {
+        this.responseActionMembers.push(new response_action_member_model_1.ResponseActionMember(action, payload, extra));
     }
     applyResponseActionMembers() {
         // Loop over response members to apply
@@ -59,6 +59,7 @@ class ResponseActionMemberService {
             return false;
         }
         this.cgps.mSettings = cgpsSettings.GetSettingsData();
+        return true;
     }
 }
 exports.ResponseActionMemberService = ResponseActionMemberService;

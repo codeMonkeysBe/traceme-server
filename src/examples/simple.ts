@@ -30,7 +30,6 @@ const options: ServerOptions = {
  */
 const server = new Server(options);
 
-let settingsOnce = true;
 
 /**
  * On each new connection, this callback executes
