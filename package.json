@@ -1,6 +1,6 @@
 {
   "name": "traceme-server",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "TCP server that speaks the KCS TraceME language",
   "keywords": ["IoT", "TraceME", "tracking", "GPS"],
   "author":  {

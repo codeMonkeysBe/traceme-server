@@ -55,6 +55,7 @@ server.on("connection", conn => {
       eventId: receivedEvent.cgps.CanGetEventID() ?  receivedEvent.cgps.GetEventID() : null,
       switch: receivedEvent.cgps.GetSwitch(),
       switchData: receivedEvent.cgps.GetValidSwitchData(),
+      httpData: receivedEvent.cgps.GetHttpData(),
       coords: receivedEvent.cgps.CanGetLatLong() ? `${receivedEvent.cgps.GetLatitudeFloat()}, ${receivedEvent.cgps.GetLongitudeFloat()}` : null,
       dataBytes: receivedEvent.cgps.CanGetPortData() ? receivedEvent.cgps.GetPortDataBytes() : null
     },"\n\n");
@@ -81,6 +82,10 @@ server.on("connection", conn => {
    */
   conn.on('error', err => {
     console.log('Handling errors', err);
+  });
+
+  conn.on('imei', imei => {
+    console.log('got imei', imei);
   });
 
 

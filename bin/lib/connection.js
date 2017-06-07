@@ -168,7 +168,8 @@ class Connection extends events_1.EventEmitter {
         // Extract the imei in match array
         let imeiMatches = dataString.match(/^(\d+)\|/);
         if (imeiMatches && typeof imeiMatches[1] !== "undefined") {
-            transmittedImei = imeiMatches[1];
+            transmittedImei = this.kcs.CGPShelper.DecompressImei(imeiMatches[1]);
+            ;
         }
         // Already got the imei
         if (typeof this.imei !== "undefined") {
@@ -186,10 +187,6 @@ class Connection extends events_1.EventEmitter {
                     this.tcpConnection.destroy("imei mismatch on connection");
                 }
             }
-            else {
-                // Make whole module dataString strings
-                dataString = dataString.replace(/^\d*\|/, `${this.imei}|`);
-            }
         }
         else {
             this.imei = transmittedImei;
@@ -199,6 +196,8 @@ class Connection extends events_1.EventEmitter {
             // Report that we have the imei
             this.emit('imei', this.imei);
         }
+        dataString = dataString.replace(/^\d*\|/, `${this.imei}|`);
+        console.log('datastring', dataString);
         // Makes the module stop sending an imei with each transmission
         this.cgps.mOmitIdentification = true;
         if (!this.cgps.SetHttpData(dataString)) {
