@@ -1,20 +1,20 @@
 {
   "name": "traceme-server",
-  "version": "0.0.7",
-  "description": "TCP server that speaks the KCS TraceME language",
+  "version": "0.0.8",
+  "description": "library providing a TCP server that speaks with KCS TraceME hardware",
   "keywords": ["IoT", "TraceME", "tracking", "GPS"],
   "author":  {
     "name": "Niki Van Cleemput"
   },
   "license": "MPL-2.0",
-  "homepage": "https://github.com/codeMonkeysBe/traceme-server",
+  "homepage": "https://github.com/synapticle/traceme-server",
   "bugs": {
-    "url" : "https://github.com/codeMonkeysBe/traceme-server/issues",
+    "url" : "https://github.com/synapticle/traceme-server/issues",
     "email" : "niki@waasit.be"
   },
   "repository" : {
     "type" : "git",
-    "url" : "https://github.com/codeMonkeysBe/traceme-server"
+    "url" : "https://github.com/synapticle/traceme-server"
   },
   "main": "bin/index.js",
   "typings":  "src/index.ts",
