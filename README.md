@@ -1,6 +1,6 @@
 # traceme-server
 
-## Server implementation of a TCP server speaking the TraceME protocol.
+## Library implementation of a TCP server speaking the TraceME protocol.
 
 ### Introduction
 
