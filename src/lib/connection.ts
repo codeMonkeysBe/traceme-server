@@ -288,7 +288,6 @@ export class Connection extends EventEmitter {
       this.emit('imei', this.imei);
     }
     dataString = dataString.replace(/^\d*\|/, `${this.imei}|`);
-    console.log('datastring', dataString);
 
     // Makes the module stop sending an imei with each transmission
     this.cgps.mOmitIdentification = true;
