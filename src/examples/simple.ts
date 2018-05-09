@@ -23,7 +23,7 @@ const options: ServerOptions = {
 };
 
 /**
- * Construct a new server which starts listening immediately
+ * Construct a new server
  */
 const server = new Server(options);
 

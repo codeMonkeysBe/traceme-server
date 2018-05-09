@@ -1,23 +1,24 @@
-# traceme-server
-
-## Library implementation of a TCP server speaking the TraceME protocol.
+# traceme-server: a node.js traceme IoT gateway
 
 ### Introduction
 
-**Traceme-server** is a library to quickly spin up a TCP server which can listen for incoming connections coming from gps tracking modules made by the Dutch company KCS BV under the [TraceME brand.](https://trace.me/)
+**Traceme-server** is an easy to use node.js [TraceME](https://trace.me/) gateway
 
-It aims to provide a node-esque way of interacting with the gps modules.
+It aims to provide a node-esque way of interacting with the traceme gps modules.
 
 Traceme-server is written in typescript but includes transpiled js sources for use in plain js applications as well.
 
 
 ### Why this ?
 
-To provide a less resource expensive way of connecting large pools of TraceME units to a server in contrast to a traditional thread-per-connection architecture.
+Traceme units ship with an example gateway written in PHP. While fully functional the example gateway doesn't scale well. It requires a thread per connection for fully functional persistent connections. 
+
+This library takes advantage of the fact that node.js works with an event loop for io, enabling the keep alive of tens of thousands concurrent connections on a single server. 
+
 
 ### Requirements
 
- - A machine with node.js, npm, typescript
+ - A machine with node.js, npm
  - A copy of the cgps.js file from the [developers page on the TraceME website](https://trace.me/index.asp?page=devinfo).
 
 ### Installation
@@ -30,10 +31,10 @@ npm install traceme-server [--save]
 
 
 ```typescript
-
 import { writeFile, readFileSync } from "fs";
+import { homedir } from "os";
 
-import { Server, ServerOptions } from "./traceme-server";
+import { Server, ServerOptions } from "traceme-server";
 
 /**
  * Make sure to set ALL required configuration options
@@ -43,55 +44,67 @@ const options: ServerOptions = {
   tcpDataFormat: "%s\n", // Format as defined in section 60 in the settings app.
   tcpExtraDataFormat: "%s\r%d\r%x\n", // Format as defined in section 60 in the settings app.
   socketTimeout: 120, // How long to keep connections open before sending a FIN
-  maxBufferWrites: 400, // Number of buffer writes before a buffer is discarded ( make this small if you don't expect extraTcpData )
-  cgpsPath: "/path/to/file/cgps.js" // Path to the downloaded cgps.js file
+  maxBufferSize: 4096, // In Bytes. The maximum amount of memory a buffer may contain. Keep this in mind when setting max badge size in section 60 of the settings app
+  cgpsPath: homedir() + "/lib/cgps78/cgps-debug.js" // Path to the downloaded cgps.js file
 };
 
 /**
- * Construct a new server which starts listening immediately
+ * Construct a new server
  */
 const server = new Server(options);
 
 /**
- * On each new connection, this callback executes
+ * Fires every time a new incoming connection is made
  */
 server.on("connection", conn => {
-
   /**
-   * Context gives access to
-   * cgps: the plain cgps class which can be used to read the retrieved data
-   * imei: easy access to the imei of the received data
-   * uuid: each connections gets a unique identifier assigned, so it is easy to track connections in logfiles, etc.
+   * receivedEvent gives access to
+   * imei  : easy access to the imei of the received data
+   * cgps  : the plain cgps class which can be used to read the retrieved data
+   * uuid  : each connections gets a unique identifier assigned, so it is easy to track connections in logfiles, etc.
+   * tsUuid: each transmission has an unique identifier assigned.
    */
-  conn.on('event', receivedEvent => {
+  conn.on("event", receivedEvent => {
+    // We received this
+    console.log(receivedEvent);
 
-    // Log received data
-    console.log({
-      imei: receivedEvent.cgps.GetImei(),
-      date: receivedEvent.cgps.GetUtcTimeMySQL(),
-      eventId: receivedEvent.cgps.CanGetEventID() ?  receivedEvent.cgps.GetEventID() : null,
-      switch: receivedEvent.cgps.GetSwitch(),
-      switchData: receivedEvent.cgps.GetValidSwitchData(),
-      coords: receivedEvent.cgps.CanGetLatLong() ? `${receivedEvent.cgps.GetLatitudeFloat()}, ${receivedEvent.cgps.GetLongitudeFloat()}` : null
-    });
-
+    /**
+     * This is IMPORTANT
+     *
+     * Every event we receive needs to be acknowledged to the connection by calling the conn.ack(tsUuid) method
+     * when the connection receives an ack for each event in the transmission,
+     * it sends an ack back to the module which in turn removes the transmission data from internal storage.
+     *
+     */
+    conn.ack(receivedEvent.tsUuid);
   });
 
-
   /**
-   * Example writing extra data to disk
+   * Fired when extra data like a picture is received.
    */
-  conn.on('extraData', receivedEvent => {
-    writeFile("/home/user/file.jpg", receivedEvent.data, 'binary', err => {
-      // Handle write finish/error
-    });
+  conn.on("extraData", receivedData => {
+    console.log("extraData", receivedData);
   });
 
+  /**
+   * You should handle errors.
+   */
+  conn.on("error", err => {
+    console.log("Handling errors", err);
+  });
 
+  /**
+   *  When a TCP connection is made we don't know who ( or what ) is connecting.
+   * The moment a module identifies itself we emit the identifieing imei
+   */
+  conn.on("imei", imei => {
+    console.log("got imei", imei);
+  });
 });
 
-// After this call a socket will be opened on tcp port 6700
+// Start listening on
 server.listen(6700);
+
 
 ```
 
@@ -104,7 +117,6 @@ To run these examples simply clone this repo, do an npm install and
 
 ```bash
 npm run simple
-npm run moresoon
 ```
 
 
@@ -117,12 +129,3 @@ To run:
 ```bash
 npm run dev
 ```
-
-
-### Small disclaimer
-
-Me or my company codeMonkeys BVBA are in no way affiliated to KCS BV or the TraceME brand. We just like the technology and support customers working with their products.
-
-
-
-
