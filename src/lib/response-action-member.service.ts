@@ -18,7 +18,7 @@ export class ResponseActionMemberService {
 
   public applyResponseActionMembers(): ResponseActionMember[] {
     // Loop over response members to apply
-    let responseActionMemberResults = this.responseActionMembers.map((responseActionMember: ResponseActionMember) => {
+    const responseActionMemberResults = this.responseActionMembers.map((responseActionMember: ResponseActionMember) => {
       return this.applyResponseActionMember(responseActionMember);
     });
 
@@ -73,10 +73,10 @@ export class ResponseActionMemberService {
 
   public mSettings(data: Buffer) {
 
-    let cgpsSettings = new this.kcs.CGPSsettings();
+    const cgpsSettings = new this.kcs.CGPSsettings();
 
     // Load settings
-    let setRes = cgpsSettings.SetSettingsData(Array.from(data.values()));
+    const setRes = cgpsSettings.SetSettingsData(Array.from(data.values()));
 
     if(!setRes) {
       return false;

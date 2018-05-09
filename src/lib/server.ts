@@ -7,17 +7,13 @@ import { Connection } from "./connection";
 import { logger } from "./logger";
 import { loadKcsCode } from "./kcs";
 
-
 // Represents a TCP server that talks the talk
 export class Server extends EventEmitter {
-
   private tcpServer: TcpServer;
 
   private kcs: any;
 
-  constructor(
-    private options: ServerOptions
-  ) {
+  constructor(private options: ServerOptions) {
     // We are an event emitter
     super();
 
@@ -26,10 +22,8 @@ export class Server extends EventEmitter {
     // Create tcp server that waits for connections coming from the modules
     this.tcpServer = createServer();
 
-
     // Binding handlers
     this.tcpServer.on("connection", (tcpConn: Socket) => {
-
       // Pass options to connection
       let conn = new Connection(tcpConn, this.kcs, {
         tcpDataFormat: options.tcpDataFormat,
@@ -38,10 +32,8 @@ export class Server extends EventEmitter {
         maxBufferSize: options.maxBufferSize
       });
 
-
       // Emit the connection
       this.emit("connection", conn);
-
     });
 
     /**
@@ -56,19 +48,16 @@ export class Server extends EventEmitter {
       this.emit("listening");
     });
     this.tcpServer.on("error", (err: Error) => {
-      logger.f('error', 'server', "error ", {
+      logger.f("error", "server", "error ", {
         error: err
       });
       this.emit("error", err);
     });
-
   }
-
 
   // Node net listen behaviour
   // TODO make transpiler stop complaining about call target mismatch
   listen(...args) {
-    this.tcpServer.listen(...args)
+    this.tcpServer.listen(...args);
   }
-
 }
