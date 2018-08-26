@@ -32,15 +32,14 @@
     "node": ">=7.4.0"
   },
   "dependencies": {
-    "@types/node": "7.*",
-    "@types/winston": "2.*",
-    "@types/yargs": "6.*",
-    "@types/uuid": "2.*",
     "typescript": "2.*",
     "uuid": "3.*",
     "winston": "2.*"
   },
   "devDependencies": {
-    "nodemon": "1.*"
+    "@types/node": "7.*",
+    "@types/uuid": "2.*",
+    "@types/winston": "2.*",
+    "nodemon": "^1.18.3"
   }
 }
