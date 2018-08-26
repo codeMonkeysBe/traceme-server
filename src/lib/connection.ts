@@ -56,8 +56,6 @@ export class Connection extends EventEmitter {
       this.kcs
     );
 
-
-
     // Setting the socket timeout, converting seconds to the socket expected milliseconds
     this.tcpConnection.setTimeout(options.socketTimeout * 1000);
 

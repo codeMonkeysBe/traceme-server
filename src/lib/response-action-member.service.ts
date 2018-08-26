@@ -24,14 +24,8 @@ export class ResponseActionMemberService {
     this.responseActionMembers.push(new ResponseActionMember(action, payload, extra));
   }
 
-  public addFirmwareFile(payload, version) {
-    this.addFile(`r9fw${version}.hex`, payload)
-  };
-
-  public addFile(payload, name) {
-    this.files[`GET /${name}`] = payload;
-  };
-
+  // Add a custom response action generator that will be called whenever the given action is found.
+  // Enables us to hook into the responseActionMembers mechanism
   public registerCustomResponseGenerator(action: string, responseGenerator: Function) {
     this.customResponseGenerators[action] = responseGenerator;
   }
@@ -84,19 +78,46 @@ export class ResponseActionMemberService {
 
   }
 
+  public addFirmwareFile(payload: Buffer, version: Number) {
+    this.addFile(`r9fw${version}.hex`, payload)
+  };
+
+  public addDownloadFile(payload: Buffer, version: Number) {
+    this.addFile(payload, `dwnl${version}.hex`);
+  };
+
+  public getFreeDownloadSlot() {
+    for(let version = 100; version < 1000; version++) {
+      if(typeof files[`dwnl${version}.hex`] === "undefined") {
+        return version;
+      }
+    }
+  }
+
+  public addFile(payload, name) {
+    this.files[`GET /${name}`] = payload;
+  };
+
+  public getFile(filename: string) {
+    if(typeof this.files[filename] !== "undefined") {
+      const file = this.files[filename];
+      // Remove slot
+      delete this.files[filename];
+      return file;
+    }
+    return false;
+  }
+
+
+  /**
+   * m[Type}]' handlers
+   */
 
   public mFirmware(payload: Buffer, extra) {
     this.cgps.mFirmware = extra.version;
     // Keeping the file for the next connection
     this.addFirmwareFile(payload, extra.version);
     return true;
-  }
-
-  public getFile(filename: string) {
-    if(typeof this.files[filename] !== "undefined") {
-      return this.files[filename];
-    }
-    return false;
   }
 
   public mSettings(data: Buffer) {

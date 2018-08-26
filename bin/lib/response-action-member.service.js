@@ -16,14 +16,8 @@ class ResponseActionMemberService {
     add(action, payload, extra = null) {
         this.responseActionMembers.push(new response_action_member_model_1.ResponseActionMember(action, payload, extra));
     }
-    addFirmwareFile(payload, version) {
-        this.addFile(`r9fw${version}.hex`, payload);
-    }
-    ;
-    addFile(payload, name) {
-        this.files[`GET /${name}`] = payload;
-    }
-    ;
+    // Add a custom response action generator that will be called whenever the given action is found.
+    // Enables us to hook into the responseActionMembers mechanism
     registerCustomResponseGenerator(action, responseGenerator) {
         this.customResponseGenerators[action] = responseGenerator;
     }
@@ -67,17 +61,42 @@ class ResponseActionMemberService {
         }
         return responseActionMember;
     }
+    addFirmwareFile(payload, version) {
+        this.addFile(`r9fw${version}.hex`, payload);
+    }
+    ;
+    addDownloadFile(payload, version) {
+        this.addFile(payload, `dwnl${version}.hex`);
+    }
+    ;
+    getFreeDownloadSlot() {
+        for (let version = 100; version < 1000; version++) {
+            if (typeof files[`dwnl${version}.hex`] === "undefined") {
+                return version;
+            }
+        }
+    }
+    addFile(payload, name) {
+        this.files[`GET /${name}`] = payload;
+    }
+    ;
+    getFile(filename) {
+        if (typeof this.files[filename] !== "undefined") {
+            const file = this.files[filename];
+            // Remove slot
+            delete this.files[filename];
+            return file;
+        }
+        return false;
+    }
+    /**
+     * m[Type}]' handlers
+     */
     mFirmware(payload, extra) {
         this.cgps.mFirmware = extra.version;
         // Keeping the file for the next connection
         this.addFirmwareFile(payload, extra.version);
         return true;
-    }
-    getFile(filename) {
-        if (typeof this.files[filename] !== "undefined") {
-            return this.files[filename];
-        }
-        return false;
     }
     mSettings(data) {
         const cgpsSettings = new this.kcs.CGPSsettings();

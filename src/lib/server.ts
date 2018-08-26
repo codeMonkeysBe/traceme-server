@@ -2,7 +2,6 @@ import { EventEmitter } from "events";
 import { Server as TcpServer, createServer, Socket } from "net";
 
 import { ServerOptions } from "./server-options.model";
-import { ConnectionOptions } from "./connection-options.model";
 import { Connection } from "./connection";
 import { logger } from "./logger";
 import { loadKcsCode } from "./kcs";
