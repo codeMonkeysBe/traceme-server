@@ -78,11 +78,11 @@ export class ResponseActionMemberService {
 
   }
 
-  public addFirmwareFile(payload: Buffer, version: Number) {
+  public addFirmwareFile(payload: Buffer, version: number) {
     this.addFile(`r9fw${version}.hex`, payload)
   };
 
-  public addDownloadFile(payload: Buffer, version: Number) {
+  public addDownloadFile(payload: Buffer, version: number) {
     this.addFile(payload, `dwnl${version}.hex`);
   };
 
