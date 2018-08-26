@@ -2,18 +2,38 @@ import { logger } from "./logger";
 
 import { ResponseActionMember } from "./response-action-member.model";
 
+const files = {};
+
 export class ResponseActionMemberService {
 
   private responseActionMembers: ResponseActionMember[] = [];
+  private files: any;
+  private customResponseGenerators: any[] = [];
+
+  // Stall the members apply until next apply round.
+  private stall = false;
 
   constructor(
     private cgps: any,
     private kcs: any, // Passed as construction argument because this is dynamically loaded
   ){
+    this.files = files;
   }
 
   public add(action: string, payload: any, extra: any = null): void {
     this.responseActionMembers.push(new ResponseActionMember(action, payload, extra));
+  }
+
+  public addFirmwareFile(payload, version) {
+    this.addFile(`r9fw${version}.hex`, payload)
+  };
+
+  public addFile(payload, name) {
+    this.files[`GET /${name}`] = payload;
+  };
+
+  public registerCustomResponseGenerator(action: string, responseGenerator: Function) {
+    this.customResponseGenerators[action] = responseGenerator;
   }
 
   public applyResponseActionMembers(): ResponseActionMember[] {
@@ -21,6 +41,10 @@ export class ResponseActionMemberService {
     const responseActionMemberResults = this.responseActionMembers.map((responseActionMember: ResponseActionMember) => {
       return this.applyResponseActionMember(responseActionMember);
     });
+
+    if(this.stall) {
+      this.stall = false;
+    }
 
     // Clear the member list
     this.responseActionMembers = [];
@@ -33,16 +57,16 @@ export class ResponseActionMemberService {
   private applyResponseActionMember(responseActionMember: ResponseActionMember): ResponseActionMember {
 
     // Check if we can continue
-    if(!this.cgps.RequireResponseActionMembersStall()) {
+    if(!this.cgps.RequireResponseActionMembersStall() && !this.stall) {
 
       // If we have a special function to process this type, let the function do it
       if(typeof this[responseActionMember.action] === "function") {
-
-        responseActionMember.result = this[responseActionMember.action](responseActionMember.payload);
-
-      // Does this response action member exist on the cgps instance, fill in manually
+        responseActionMember.result = this[responseActionMember.action](responseActionMember.payload, responseActionMember.extra);
+      } else if(typeof this.customResponseGenerators[responseActionMember.action] === "function") {
+        responseActionMember.result = this.customResponseGenerators[responseActionMember.action](responseActionMember.payload, responseActionMember.extra);
+        this.stall = true;
       } else if(typeof this.cgps[responseActionMember.action] !== "undefined") {
-
+        // Does this response action member exist on the cgps instance, fill in manually
         // Binary load
         if(Buffer.isBuffer(responseActionMember.payload)) {
           this.cgps[responseActionMember.action] = Array.from(responseActionMember.payload.values())
@@ -61,15 +85,19 @@ export class ResponseActionMemberService {
   }
 
 
-  // TODO implement
-  public firmware(version: number) {
-    // Some sanity checks
-    if(!(Number.isInteger(version) && version > 200 && version < 600)) {
-      return false;
-    }
-
+  public mFirmware(payload: Buffer, extra) {
+    this.cgps.mFirmware = extra.version;
+    // Keeping the file for the next connection
+    this.addFirmwareFile(payload, extra.version);
+    return true;
   }
 
+  public getFile(filename: string) {
+    if(typeof this.files[filename] !== "undefined") {
+      return this.files[filename];
+    }
+    return false;
+  }
 
   public mSettings(data: Buffer) {
 
@@ -90,3 +118,4 @@ export class ResponseActionMemberService {
 
 
 }
+

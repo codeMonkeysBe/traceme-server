@@ -4,7 +4,6 @@ const events_1 = require("events");
 const uuid = require("uuid");
 const logger_1 = require("./logger");
 const response_action_member_service_1 = require("./response-action-member.service");
-;
 class Connection extends events_1.EventEmitter {
     constructor(tcpConnection, kcs, // Passed as construction argument because this is dynamically loaded
         options) {
@@ -17,7 +16,7 @@ class Connection extends events_1.EventEmitter {
         this.ackCounters = {};
         this.cgps = new this.kcs.CGPS();
         // Constructing the service that sets and checks ->m... actions
-        this.responseActionMemberService = new response_action_member_service_1.ResponseActionMemberService(this.cgps, this.kcs);
+        this.ramService = new response_action_member_service_1.ResponseActionMemberService(this.cgps, this.kcs);
         // Setting the socket timeout, converting seconds to the socket expected milliseconds
         this.tcpConnection.setTimeout(options.socketTimeout * 1000);
         // Unique identifier for each connection ( good for logging purposes )
@@ -26,36 +25,43 @@ class Connection extends events_1.EventEmitter {
          * Creates a regex from a tcp data string
          * so we can easily extract data from incoming transmissions
          */
-        this.tcpDataFormatRegex = new RegExp(`^${this.options.tcpDataFormat.replace('%s', '([0-9a-zA-Z|_-]+)')}`);
+        this.tcpDataFormatRegex = new RegExp(`^${this.options.tcpDataFormat.replace("%s", "([0-9a-zA-Z|_-]+)")}`);
         /*
          * Creates a regex from a tcp extra data string
          * so we can easily extract data from incoming transmissions
          */
-        let ds = this.options.tcpExtraDataFormat
-            .replace('%s', '([0-9a-zA-Z|_-]+)')
-            .replace('%d', '([0-9]+)')
-            .replace('%x', '([\u0000-\uffff]+)');
+        const ds = this.options.tcpExtraDataFormat
+            .replace("%s", "([0-9a-zA-Z|_-]+)")
+            .replace("%d", "([0-9]+)")
+            .replace("%x", "([\u0000-\uffff]+)");
         this.tcpExtraDataFormatRegex = new RegExp(`^${ds}$`);
+        this.getFileRegex = new RegExp("^GET \/.{0,4}\\d\\d\\d\.hex\n$");
         /*
          * Initialize tcp handlers
          */
         // handler that handles incoming data
         this.initConnectionHandlers();
         // Log the new connection so we know something happened
-        logger_1.logger.f('info', this.uuid, "connection: New connection ", {
+        logger_1.logger.f("info", this.uuid, "connection: New connection ", {
             addr: this.tcpConnection.localAddress,
             port: this.tcpConnection.localPort,
             raddr: this.tcpConnection.remoteAddress,
             rport: this.tcpConnection.remotePort,
-            fam: this.tcpConnection.remoteFamily,
+            fam: this.tcpConnection.remoteFamily
         });
+    }
+    end(data) {
+        this.tcpConnection.end(data);
+    }
+    getResponseActionMemberService() {
+        return this.ramService;
     }
     // Add a single response action member
     addResponseActionMember(action, payload, extra = null) {
-        return this.responseActionMemberService.add(action, payload, extra);
+        return this.ramService.add(action, payload, extra);
     }
     applyResponseActionMembers() {
-        let responseActionMemberResults = this.responseActionMemberService.applyResponseActionMembers();
+        const responseActionMemberResults = this.ramService.applyResponseActionMembers();
         logger_1.logger.f("debug", this.uuid, "connection: applyResponseActionMembers", {
             results: responseActionMemberResults
         });
@@ -68,7 +74,7 @@ class Connection extends events_1.EventEmitter {
     initConnectionHandlers() {
         this.tcpConnection.on("data", (chunk) => {
             logger_1.logger.f("silly", this.uuid, "connection: Received data", {
-                chunk: chunk.toString('ASCII')
+                chunk: chunk.toString("ASCII")
             });
             // Start a new buffer if necesarry
             if (typeof this.buffer === "undefined") {
@@ -81,7 +87,7 @@ class Connection extends events_1.EventEmitter {
             }
             if (this.buffer.length > this.options.maxBufferSize) {
                 logger_1.logger.f("error", this.uuid, "connection: maxBufferSize exeeded, closing the connection", {
-                    buffer: this.buffer.toString('ASCII')
+                    buffer: this.buffer.toString("ASCII")
                 });
                 // Close up the connection
                 delete this.buffer;
@@ -89,20 +95,28 @@ class Connection extends events_1.EventEmitter {
                 return;
             }
             logger_1.logger.f("debug", this.uuid, "connection: total buffer", {
-                chunk: this.buffer.toString('ASCII')
+                chunk: this.buffer.toString("ASCII")
             });
             // Match the module data format with the incoming data
             // If matches has results we know we have a regular data string
-            let matches = this.buffer.toString('ASCII').match(this.tcpDataFormatRegex);
+            const matches = this.buffer
+                .toString("ASCII")
+                .match(this.tcpDataFormatRegex);
             // If extra matches has results we know we have an extra data string
-            let extraMatches = this.buffer.toString('ASCII').match(this.tcpExtraDataFormatRegex);
+            const extraMatches = this.buffer
+                .toString("ASCII")
+                .match(this.tcpExtraDataFormatRegex);
+            // Firmware match
+            const fileMatches = this.buffer
+                .toString("ASCII")
+                .match(this.getFileRegex);
             /**
              * When our connection buffer matches a data string WITHOUT extra data
              */
             if (Array.isArray(matches) && matches.length === 2) {
                 // We want the datastring itself, which is in match 1
                 // the first matching parentheses of the tcpDataFormatRegex
-                let match = matches[1];
+                const match = matches[1];
                 logger_1.logger.f("silly", this.uuid, "connection: Matched TCP data format", {
                     matches: matches
                 });
@@ -121,16 +135,18 @@ class Connection extends events_1.EventEmitter {
             else if (Array.isArray(extraMatches) && extraMatches.length === 4) {
                 // We want the datastring itself, which is in match 1
                 // the first matching parentheses of the tcpExtraDataFormat
-                let match = extraMatches[1];
-                let bytesOfData = parseInt(extraMatches[2], 10);
-                let binaryIndex = this.buffer.toString('ascii').indexOf(extraMatches[3]);
-                let sliceBuf = Buffer.from(this.buffer);
-                let receivedData = sliceBuf.slice(binaryIndex, binaryIndex + bytesOfData);
+                const match = extraMatches[1];
+                const bytesOfData = parseInt(extraMatches[2], 10);
+                const binaryIndex = this.buffer
+                    .toString("ascii")
+                    .indexOf(extraMatches[3]);
+                const sliceBuf = Buffer.from(this.buffer);
+                const receivedData = sliceBuf.slice(binaryIndex, binaryIndex + bytesOfData);
                 logger_1.logger.f("debug", this.uuid, "connection: Matched TCP extra data format, received upload", {
                     bytesOfData: bytesOfData,
                     bytesCounted: receivedData.length
                 });
-                this.emit('extraData', {
+                this.emit("extraData", {
                     uuid: this.uuid,
                     imei: this.imei,
                     data: receivedData
@@ -138,6 +154,14 @@ class Connection extends events_1.EventEmitter {
                 this.buffer = this.buffer.slice(extraMatches[0].length);
                 // processDataString the received data
                 this.processDataString(match);
+            }
+            else if (Array.isArray(fileMatches)) {
+                const request = fileMatches[0].trim();
+                const file = this.ramService.getFile(request);
+                if (file) {
+                    this.tcpConnection.write(file);
+                    this.buffer = undefined;
+                }
             }
         });
         this.tcpConnection.on("close", () => {
@@ -155,8 +179,8 @@ class Connection extends events_1.EventEmitter {
             logger_1.logger.f("info", this.uuid, "connection: socket timeout");
             this.emit("timeout");
         });
-        this.tcpConnection.on("error", (err) => {
-            logger_1.logger.f('error', this.uuid, "connection: tcpConnectionError ", {
+        this.tcpConnection.on("error", err => {
+            logger_1.logger.f("error", this.uuid, "connection: tcpConnectionError ", {
                 error: err
             });
             this.emit("error", err);
@@ -166,10 +190,9 @@ class Connection extends events_1.EventEmitter {
         // Place to store the extracted imei
         let transmittedImei;
         // Extract the imei in match array
-        let imeiMatches = dataString.match(/^(\d+)\|/);
+        const imeiMatches = dataString.match(/^(\d+)\|/);
         if (imeiMatches && typeof imeiMatches[1] !== "undefined") {
             transmittedImei = this.kcs.CGPShelper.DecompressImei(imeiMatches[1]);
-            ;
         }
         // Already got the imei
         if (typeof this.imei !== "undefined") {
@@ -181,7 +204,7 @@ class Connection extends events_1.EventEmitter {
                     // Very strange, we received a different imei then before.
                     logger_1.logger.f("error", this.uuid, "connection: Extracted imei from transmission did not match imei set on connection", {
                         connectionImei: this.imei,
-                        transmittedImei: transmittedImei,
+                        transmittedImei: transmittedImei
                     });
                     // Kill the connection at once.
                     this.tcpConnection.destroy("imei mismatch on connection");
@@ -194,7 +217,7 @@ class Connection extends events_1.EventEmitter {
                 imei: this.imei
             });
             // Report that we have the imei
-            this.emit('imei', this.imei);
+            this.emit("imei", this.imei);
         }
         dataString = dataString.replace(/^\d*\|/, `${this.imei}|`);
         // Makes the module stop sending an imei with each transmission
@@ -207,20 +230,20 @@ class Connection extends events_1.EventEmitter {
             });
             return null;
         }
-        let totalParts = this.cgps.GetDataPartCount();
+        const totalParts = this.cgps.GetDataPartCount();
         logger_1.logger.f("debug", this.uuid, "connection: Decoding dataString", {
             dataString: dataString,
             parts: totalParts,
             error: this.cgps.GetLastError()
         });
         // Generate unique ack id for each incoming transmission.
-        let tsUuid = uuid.v4();
+        const tsUuid = uuid.v4();
         this.ackCounters[tsUuid] = {
             parts: totalParts,
             ackedParts: 0
         };
         // Transmission date
-        let tsDate = new Date();
+        const tsDate = new Date();
         /*
          * Loop over data parts and emit an event for each part
          */
@@ -237,7 +260,7 @@ class Connection extends events_1.EventEmitter {
                 });
                 continue;
             }
-            this.emit('event', {
+            this.emit("event", {
                 cgps: this.cgps,
                 imei: this.imei,
                 tsUuid: tsUuid,
@@ -250,18 +273,18 @@ class Connection extends events_1.EventEmitter {
     // Ack an individual event in a transmission
     ack(tsUuid) {
         if (typeof this.ackCounters[tsUuid] === "undefined") {
-            logger_1.logger.f('error', this.uuid, "connection: unkown ack ID ", {
+            logger_1.logger.f("error", this.uuid, "connection: unkown ack ID ", {
                 tsUuid: tsUuid
             });
             return;
         }
         this.ackCounters[tsUuid].ackedParts++;
         if (this.ackCounters[tsUuid].ackedParts === this.ackCounters[tsUuid].parts) {
-            logger_1.logger.f('debug', this.uuid, "tranmission acked", {
+            logger_1.logger.f("debug", this.uuid, "tranmission acked", {
                 tsUuid: tsUuid
             });
             // Notify connection client that a transmission is fully acked
-            this.emit('acked', {
+            this.emit("acked", {
                 tsUuid: tsUuid,
                 totalParts: this.ackCounters[tsUuid].ackedParts,
                 imei: this.imei
@@ -274,18 +297,17 @@ class Connection extends events_1.EventEmitter {
         return true;
     }
     sendResponse(ackedParts = 0) {
-        let runningTransmissions = Object.keys(this.ackCounters);
-        // Do net send when a transmission is in progress.
-        // Response will be send anyway
+        const runningTransmissions = Object.keys(this.ackCounters);
+        // Do net send response when a transmission is in progress.
         if (ackedParts === 0 && runningTransmissions.length !== 0) {
             return false;
         }
-        let response = Buffer.from(this.cgps.BuildResponseTCP(ackedParts));
+        const response = Buffer.from(this.cgps.BuildResponseTCP(ackedParts));
         // See if we need to respond
         if (response !== null) {
             logger_1.logger.f("debug", this.uuid, "connection: sendingResponse", {
                 buffer: response,
-                bufferString: response.toString('utf-8')
+                bufferString: response.toString("utf-8")
             });
             // Reply to module with response
             this.tcpConnection.write(response);

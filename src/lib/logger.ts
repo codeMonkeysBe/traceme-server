@@ -8,7 +8,7 @@ const logger: any = new (winston.Logger)({
     ]
 });
 
-logger.level = "error";
+logger.level = "debug";
 
 /*
  * Custom logger function, for "standard" logmessage

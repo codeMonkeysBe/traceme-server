@@ -11,6 +11,8 @@ class Server extends events_1.EventEmitter {
         // We are an event emitter
         super();
         this.options = options;
+        // Array of files
+        this.files = {};
         this.kcs = kcs_1.loadKcsCode(options.cgpsPath);
         // Create tcp server that waits for connections coming from the modules
         this.tcpServer = net_1.createServer();
@@ -38,7 +40,7 @@ class Server extends events_1.EventEmitter {
             this.emit("listening");
         });
         this.tcpServer.on("error", (err) => {
-            logger_1.logger.f('error', 'server', "error ", {
+            logger_1.logger.f("error", "server", "error ", {
                 error: err
             });
             this.emit("error", err);

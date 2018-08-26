@@ -26,7 +26,7 @@ export class Connection extends EventEmitter {
   // Regexes used to match and extract data
   private tcpDataFormatRegex: RegExp;
   private tcpExtraDataFormatRegex: RegExp;
-  private getRequestRegex: RegExp;
+  private getFileRegex: RegExp;
 
   // To keep track of the imei
   private imei: number;
@@ -38,7 +38,7 @@ export class Connection extends EventEmitter {
   private ackCounters: ackCounterCollection = {};
 
   // Service to set response action members
-  private responseActionMemberService: ResponseActionMemberService;
+  private ramService: ResponseActionMemberService;
 
   constructor(
     public tcpConnection: Socket,
@@ -51,10 +51,12 @@ export class Connection extends EventEmitter {
     this.cgps = new this.kcs.CGPS();
 
     // Constructing the service that sets and checks ->m... actions
-    this.responseActionMemberService = new ResponseActionMemberService(
+    this.ramService = new ResponseActionMemberService(
       this.cgps,
       this.kcs
     );
+
+
 
     // Setting the socket timeout, converting seconds to the socket expected milliseconds
     this.tcpConnection.setTimeout(options.socketTimeout * 1000);
@@ -81,6 +83,9 @@ export class Connection extends EventEmitter {
 
     this.tcpExtraDataFormatRegex = new RegExp(`^${ds}$`);
 
+
+    this.getFileRegex = new RegExp("^GET \/.{0,4}\\d\\d\\d\.hex\n$");
+
     /*
      * Initialize tcp handlers
      */
@@ -98,17 +103,25 @@ export class Connection extends EventEmitter {
     });
   }
 
+  public end(data: Buffer) {
+    this.tcpConnection.end(data);
+  }
+
+  public getResponseActionMemberService() {
+    return this.ramService;
+  }
+
   // Add a single response action member
   public addResponseActionMember(
     action: string,
     payload: any,
     extra: any = null
   ) {
-    return this.responseActionMemberService.add(action, payload, extra);
+    return this.ramService.add(action, payload, extra);
   }
 
   public applyResponseActionMembers(): ResponseActionMember[] {
-    const responseActionMemberResults = this.responseActionMemberService.applyResponseActionMembers();
+    const responseActionMemberResults = this.ramService.applyResponseActionMembers();
 
     logger.f("debug", this.uuid, "connection: applyResponseActionMembers", {
       results: responseActionMemberResults
@@ -127,6 +140,7 @@ export class Connection extends EventEmitter {
       logger.f("silly", this.uuid, "connection: Received data", {
         chunk: chunk.toString("ASCII")
       });
+
 
       // Start a new buffer if necesarry
       if (typeof this.buffer === "undefined") {
@@ -169,6 +183,10 @@ export class Connection extends EventEmitter {
       const extraMatches = this.buffer
         .toString("ASCII")
         .match(this.tcpExtraDataFormatRegex);
+      // Firmware match
+      const fileMatches = this.buffer
+        .toString("ASCII")
+        .match(this.getFileRegex);
 
       /**
        * When our connection buffer matches a data string WITHOUT extra data
@@ -231,7 +249,16 @@ export class Connection extends EventEmitter {
 
         // processDataString the received data
         this.processDataString(match);
+      } else if (Array.isArray(fileMatches)) {
+        const request = fileMatches[0].trim();
+        const file = this.ramService.getFile(request);
+        if(file) {
+          this.tcpConnection.write(file);
+          this.buffer = undefined;
+        }
       }
+
+
     });
 
     this.tcpConnection.on("close", () => {
@@ -427,4 +454,5 @@ export class Connection extends EventEmitter {
 
     return true;
   }
+
 }

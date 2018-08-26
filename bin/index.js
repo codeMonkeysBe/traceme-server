@@ -8,4 +8,5 @@ __export(require("./lib/connection"));
 __export(require("./lib/logger"));
 __export(require("./lib/response-action-member.model"));
 __export(require("./lib/response-action-member.service"));
+__export(require("./lib/response-action-member-result.model"));
 //# sourceMappingURL=index.js.map

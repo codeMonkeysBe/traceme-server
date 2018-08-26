@@ -13,6 +13,9 @@ export class Server extends EventEmitter {
 
   private kcs: any;
 
+  // Array of files
+  private files: any = {};
+
   constructor(private options: ServerOptions) {
     // We are an event emitter
     super();

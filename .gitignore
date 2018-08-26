@@ -40,3 +40,5 @@ src/devServer.ts
 
 bin/devServer.js
 bin/devServer.js.map
+
+.idea/

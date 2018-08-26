@@ -2,14 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const winston = require("winston");
 // Setup winston instance
-let logger = new (winston.Logger)({
+const logger = new (winston.Logger)({
     transports: [
         // Add timestamps to each logger message
         new (winston.transports.Console)({ "timestamp": true })
     ]
 });
 exports.logger = logger;
-logger.level = "error";
+logger.level = "debug";
 /*
  * Custom logger function, for "standard" logmessage
  */
