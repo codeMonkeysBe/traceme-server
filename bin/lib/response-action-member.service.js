@@ -62,7 +62,7 @@ class ResponseActionMemberService {
         return responseActionMember;
     }
     addFirmwareFile(payload, version) {
-        this.addFile(`r9fw${version}.hex`, payload);
+        this.addFile(payload, `r9fw${version}.hex`);
     }
     ;
     addDownloadFile(payload, version) {

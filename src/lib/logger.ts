@@ -8,13 +8,13 @@ const logger: any = new (winston.Logger)({
     ]
 });
 
-logger.level = "debug";
+logger.level = "info";
 
 /*
  * Custom logger function, for "standard" logmessage
  */
 logger.f = (level: string, uuid: string, title: string, tolog) => {
-  logger.log(level, `[${uuid}] [${title}] ${JSON.stringify(tolog)} `);
+  logger.log(level, `[${uuid}] [${title}] ${typeof tolog !== 'undefined' ? JSON.stringify(tolog): ''} `);
 };
 
 

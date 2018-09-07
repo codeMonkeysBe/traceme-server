@@ -1,6 +1,6 @@
 {
   "name": "traceme-server",
-  "version": "0.0.10",
+  "version": "0.0.12",
   "description": "library providing a TCP server that speaks with KCS TraceME hardware",
   "keywords": [
     "IoT",

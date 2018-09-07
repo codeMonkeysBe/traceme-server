@@ -79,7 +79,7 @@ export class ResponseActionMemberService {
   }
 
   public addFirmwareFile(payload: Buffer, version: number) {
-    this.addFile(`r9fw${version}.hex`, payload)
+    this.addFile(payload, `r9fw${version}.hex`);
   };
 
   public addDownloadFile(payload: Buffer, version: number) {

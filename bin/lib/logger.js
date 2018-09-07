@@ -9,11 +9,11 @@ const logger = new (winston.Logger)({
     ]
 });
 exports.logger = logger;
-logger.level = "debug";
+logger.level = "info";
 /*
  * Custom logger function, for "standard" logmessage
  */
 logger.f = (level, uuid, title, tolog) => {
-    logger.log(level, `[${uuid}] [${title}] ${JSON.stringify(tolog)} `);
+    logger.log(level, `[${uuid}] [${title}] ${typeof tolog !== 'undefined' ? JSON.stringify(tolog) : ''} `);
 };
 //# sourceMappingURL=logger.js.map
