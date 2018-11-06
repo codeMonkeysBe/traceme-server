@@ -1,4 +1,3 @@
-
 import { runInThisContext } from "vm";
 import { readFileSync } from "fs";
 import { logger } from "./logger";
@@ -10,12 +9,10 @@ declare function CGPS(): void;
 declare function CGPSsettings(): void;
 declare function CGPShelper(): void;
 
-
 // Runtime code loading of KCS code
 export function loadKcsCode(path: string) {
-
   // Load kcs code text
-  let kcsCode = readFileSync(path, 'utf8');
+  let kcsCode = readFileSync(path, "utf8");
 
   // Execute code in current module context
   // Effectively makes the global variables in the kcs code global to this module.
@@ -30,5 +27,4 @@ export function loadKcsCode(path: string) {
     CGPSsettings: CGPSsettings,
     CGPShelper: CGPShelper
   };
-
-};
+}

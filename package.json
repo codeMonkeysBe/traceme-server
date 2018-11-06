@@ -24,14 +24,14 @@
   "main": "bin/index.js",
   "typings": "src/index.ts",
   "scripts": {
-    "simple": "tsc & nodemon bin/examples/simple.js",
-    "dev": "tsc & nodemon bin/devServer.js",
-    "build": "tsc"
+    "build": "tsc",
+    "prettier": "prettier --write src/**/*.*"
   },
   "engines": {
     "node": ">=7.4.0"
   },
   "dependencies": {
+    "prettier": "^1.14.3",
     "typescript": "2.*",
     "uuid": "3.*",
     "winston": "2.*"

@@ -3,7 +3,5 @@ export interface ServerOptions {
   tcpExtraDataFormat: string;
   socketTimeout: number; // Socket timeout in seconds
   maxBufferSize: number; // Max buffer size in bytes
-  cgpsPath: string;  // Path to the CGPS file location
+  cgpsPath: string; // Path to the CGPS file location
 }
-
-

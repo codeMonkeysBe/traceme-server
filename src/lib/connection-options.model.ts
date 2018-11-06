@@ -4,5 +4,3 @@ export interface ConnectionOptions {
   socketTimeout: number; // Socket timeout in seconds
   maxBufferSize: number; // // Max buffer size in bytes
 }
-
-

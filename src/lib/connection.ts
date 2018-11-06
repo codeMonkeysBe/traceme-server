@@ -51,10 +51,7 @@ export class Connection extends EventEmitter {
     this.cgps = new this.kcs.CGPS();
 
     // Constructing the service that sets and checks ->m... actions
-    this.ramService = new ResponseActionMemberService(
-      this.cgps,
-      this.kcs
-    );
+    this.ramService = new ResponseActionMemberService(this.cgps, this.kcs);
 
     // Setting the socket timeout, converting seconds to the socket expected milliseconds
     this.tcpConnection.setTimeout(options.socketTimeout * 1000);
@@ -81,8 +78,7 @@ export class Connection extends EventEmitter {
 
     this.tcpExtraDataFormatRegex = new RegExp(`^${ds}$`);
 
-
-    this.getFileRegex = new RegExp("^GET \/.{0,4}\\d\\d\\d\.hex\n$");
+    this.getFileRegex = new RegExp("^GET /.{0,4}\\d\\d\\d.hex\n$");
 
     /*
      * Initialize tcp handlers
@@ -138,7 +134,6 @@ export class Connection extends EventEmitter {
       logger.f("silly", this.uuid, "connection: Received data", {
         chunk: chunk.toString("ASCII")
       });
-
 
       // Start a new buffer if necesarry
       if (typeof this.buffer === "undefined") {
@@ -250,13 +245,11 @@ export class Connection extends EventEmitter {
       } else if (Array.isArray(fileMatches)) {
         const request = fileMatches[0].trim();
         const file = this.ramService.getFile(request);
-        if(file) {
+        if (file) {
           this.tcpConnection.write(file);
           this.buffer = undefined;
         }
       }
-
-
     });
 
     this.tcpConnection.on("close", () => {
@@ -452,5 +445,4 @@ export class Connection extends EventEmitter {
 
     return true;
   }
-
 }
