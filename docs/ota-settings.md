@@ -31,7 +31,7 @@ server.on("connection", conn => {
     if (otaUploadApplied) {
       const tms = fs.readFileSync("/path/to/settings.tms");
       conn.addResponseActionMember("mSettings", tms);
-      let appliedMembers = conn.applyResponseActionMembers();
+      const appliedMembers = conn.applyResponseActionMembers();
       if (appliedMembers[0].result) {
         otaUploadApplied = true;
       }
