@@ -39,7 +39,7 @@ server.listen(6700);
 
 ### Requirements
 
- - [Node.js](https://nodejs.org/en/) installed on your system.1
+ - [Node.js](https://nodejs.org/en/) installed on your system.
  - A copy of the cgps.js file from the [developers page on the TraceME website](https://trace.me/index.asp?page=devinfo).
 
 ### Installation
@@ -48,3 +48,6 @@ server.listen(6700);
 npm install traceme-server --save
 ```
 
+### Documentation
+
+[OTA Settings](docs/ota-settings.md) example
