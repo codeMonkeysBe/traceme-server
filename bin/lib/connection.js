@@ -6,7 +6,7 @@ const logger_1 = require("./logger");
 const response_action_member_service_1 = require("./response-action-member.service");
 class Connection extends events_1.EventEmitter {
     constructor(tcpConnection, kcs, // Passed as construction argument because this is dynamically loaded
-        options) {
+    options) {
         // We are an event emitter
         super();
         this.tcpConnection = tcpConnection;
@@ -35,7 +35,7 @@ class Connection extends events_1.EventEmitter {
             .replace("%d", "([0-9]+)")
             .replace("%x", "([\u0000-\uffff]+)");
         this.tcpExtraDataFormatRegex = new RegExp(`^${ds}$`);
-        this.getFileRegex = new RegExp("^GET \/.{0,4}\\d\\d\\d\.hex\n$");
+        this.getFileRegex = new RegExp("^GET /.{0,4}\\d\\d\\d.hex\n$");
         /*
          * Initialize tcp handlers
          */

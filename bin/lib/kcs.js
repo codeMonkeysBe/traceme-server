@@ -5,7 +5,7 @@ const fs_1 = require("fs");
 // Runtime code loading of KCS code
 function loadKcsCode(path) {
     // Load kcs code text
-    let kcsCode = fs_1.readFileSync(path, 'utf8');
+    let kcsCode = fs_1.readFileSync(path, "utf8");
     // Execute code in current module context
     // Effectively makes the global variables in the kcs code global to this module.
     vm_1.runInThisContext(kcsCode, {
@@ -20,5 +20,4 @@ function loadKcsCode(path) {
     };
 }
 exports.loadKcsCode = loadKcsCode;
-;
 //# sourceMappingURL=kcs.js.map

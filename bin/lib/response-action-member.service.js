@@ -4,7 +4,8 @@ const logger_1 = require("./logger");
 const response_action_member_model_1 = require("./response-action-member.model");
 const files = {};
 class ResponseActionMemberService {
-    constructor(cgps, kcs) {
+    constructor(cgps, kcs // Passed as construction argument because this is dynamically loaded
+    ) {
         this.cgps = cgps;
         this.kcs = kcs;
         this.responseActionMembers = [];
@@ -41,7 +42,8 @@ class ResponseActionMemberService {
             if (typeof this[responseActionMember.action] === "function") {
                 responseActionMember.result = this[responseActionMember.action](responseActionMember.payload, responseActionMember.extra);
             }
-            else if (typeof this.customResponseGenerators[responseActionMember.action] === "function") {
+            else if (typeof this.customResponseGenerators[responseActionMember.action] ===
+                "function") {
                 responseActionMember.result = this.customResponseGenerators[responseActionMember.action](responseActionMember.payload, responseActionMember.extra);
                 this.stall = true;
             }
@@ -61,14 +63,14 @@ class ResponseActionMemberService {
         }
         return responseActionMember;
     }
-    addFirmwareFile(payload, version) {
-        this.addFile(payload, `r9fw${version}.hex`);
+    addFirmwareFile(payload, version, rev = 9) {
+        if (rev == 9 || rev == 8) {
+            this.addFile(payload, `r${rev}fw${version}.hex`);
+        }
     }
-    ;
     addDownloadFile(payload, version) {
         this.addFile(payload, `dwnl${version}.hex`);
     }
-    ;
     getFreeDownloadSlot() {
         for (let version = 100; version < 1000; version++) {
             if (typeof files[`dwnl${version}.hex`] === "undefined") {
@@ -79,7 +81,6 @@ class ResponseActionMemberService {
     addFile(payload, name) {
         this.files[`GET /${name}`] = payload;
     }
-    ;
     getFile(filename) {
         if (typeof this.files[filename] !== "undefined") {
             const file = this.files[filename];
@@ -95,7 +96,7 @@ class ResponseActionMemberService {
     mFirmware(payload, extra) {
         this.cgps.mFirmware = extra.version;
         // Keeping the file for the next connection
-        this.addFirmwareFile(payload, extra.version);
+        this.addFirmwareFile(payload, extra.version, extra.rev);
         return true;
     }
     mSettings(data) {
