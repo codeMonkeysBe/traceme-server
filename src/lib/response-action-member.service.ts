@@ -93,8 +93,10 @@ export class ResponseActionMemberService {
     return responseActionMember;
   }
 
-  public addFirmwareFile(payload: Buffer, version: number) {
-    this.addFile(payload, `r9fw${version}.hex`);
+  public addFirmwareFile(payload: Buffer, version: number, rev = 9) {
+    if (rev == 9 || rev == 8) {
+      this.addFile(payload, `r${rev}fw${version}.hex`);
+    }
   }
 
   public addDownloadFile(payload: Buffer, version: number) {
@@ -130,7 +132,7 @@ export class ResponseActionMemberService {
   public mFirmware(payload: Buffer, extra) {
     this.cgps.mFirmware = extra.version;
     // Keeping the file for the next connection
-    this.addFirmwareFile(payload, extra.version);
+    this.addFirmwareFile(payload, extra.version, extra.rev);
     return true;
   }
 
